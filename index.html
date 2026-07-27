@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>小语老师 - 拼音学习乐园</title>
-<script src="chars.js?v=20260727c"></script>
+<script src="chars.js?v=20260727d"></script>
 <style>
 :root {
   --c-pink: #FF6B8A;
@@ -211,8 +211,34 @@ body {
 .match-item.selected { border-color:var(--c-purple); background:#F3E8FF; }
 .match-item.matched { border-color:var(--c-green); background:#E8F5E9; pointer-events:none; }
 
+/* Error History */
+.error-list { display:flex; flex-direction:column; gap:10px; margin:16px 0; }
+.error-item { background:var(--c-card); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow); display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.25s; border-left:5px solid var(--c-pink); }
+.error-item:hover { transform:translateX(3px); }
+.error-item .err-char { font-size:36px; font-weight:900; color:var(--c-orange); min-width:48px; text-align:center; }
+.error-item .err-info { flex:1; min-width:0; }
+.error-item .err-py { font-size:18px; font-weight:700; color:var(--c-green); }
+.error-item .err-type { font-size:12px; color:var(--c-sub); margin-top:2px; }
+.error-item .err-count { display:flex; align-items:center; gap:4px; background:#FFF0F0; padding:6px 12px; border-radius:16px; font-size:14px; font-weight:700; color:var(--c-pink); white-space:nowrap; }
+.error-item .err-listen { font-size:20px; cursor:pointer; padding:6px; border-radius:50%; background:var(--c-bg); transition:all 0.2s; }
+.error-item .err-listen:hover { background:var(--c-green); color:#fff; }
+.error-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:12px 0; }
+.error-empty { text-align:center; padding:40px 20px; color:var(--c-sub); }
+.error-empty .empty-icon { font-size:60px; display:block; margin-bottom:12px; }
+.error-empty .empty-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.error-empty .empty-desc { font-size:14px; }
+
+/* Error practice */
+.error-practice-q { text-align:center; }
+.error-practice-char { font-size:60px; font-weight:900; display:block; margin:12px 0; color:var(--c-orange); }
+.error-practice-py { font-size:22px; color:var(--c-purple); font-weight:700; margin-bottom:8px; }
+
 /* Responsive */
 @media(max-width:500px){
+  .error-item { padding:12px; gap:8px; }
+  .error-item .err-char { font-size:28px; min-width:36px; }
+  .error-item .err-py { font-size:16px; }
+}
   .feature-grid { grid-template-columns:1fr; }
   .pinyin-grid { grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); }
   .pinyin-card .py-text { font-size:22px; }
@@ -308,6 +334,7 @@ body {
     <button onclick="showSection('practice')" data-section="practice">🎮 练一练</button>
     <button onclick="showSection('chars')" data-section="chars">📝 识汉字</button>
     <button onclick="showSection('progress')" data-section="progress">⭐ 我的进度</button>
+    <button onclick="showSection('errors')" data-section="errors">❌ 错题本</button>
   </nav>
 
   <!-- Home Section -->
@@ -379,8 +406,15 @@ body {
     </div>
   </section>
 
-  <!-- Progress Section -->
-  <section class="section" id="section-progress">
+  <!-- Error History Section -->
+  <section class="section" id="section-errors">
+    <div class="card">
+      <div class="card-title">❌ 错题本</div>
+      <p style="color:var(--c-sub);margin-bottom:8px">做练习时答错的题目都会记在这里，重点复习吧！</p>
+      <div class="error-actions" id="errorActions"></div>
+      <div class="error-list" id="errorList"></div>
+    </div>
+  </section>
     <div class="card">
       <div class="card-title">⭐ 学习进度</div>
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="overallProgress" style="width:0%"></div></div>
@@ -389,6 +423,7 @@ body {
         <div class="stat-card"><div class="stat-num" id="statStages">0</div><div class="stat-label">已完成课程</div></div>
         <div class="stat-card"><div class="stat-num" id="statStars">0</div><div class="stat-label">获得星星</div></div>
         <div class="stat-card"><div class="stat-num" id="statChars">0</div><div class="stat-label">认识汉字</div></div>
+        <div class="stat-card"><div class="stat-num" id="statErrors">0</div><div class="stat-label">错题记录</div></div>
       </div>
       <div class="card-title" style="margin-top:20px">🏆 成就徽章</div>
       <div class="badge-row" id="badgeRow"></div>
@@ -556,6 +591,8 @@ let state = {
   currentExercise: null,
   exerciseScore: 0,
   exerciseTotal: 0,
+  errorHistory: {},
+  _curQ: null,  // current question data for error tracking
 };
 
 function loadState() {
@@ -596,6 +633,7 @@ function showSection(name) {
   if (name==='learn') renderStageList();
   if (name==='chars') renderCharView();
   if (name==='progress') renderProgress();
+  if (name==='errors') renderErrors();
 }
 
 // ==================== SPEECH ENGINE ====================
@@ -938,6 +976,7 @@ function nextExerciseRound() {
     const correct = items[0];
     const options = shuffle([correct, items[1], items[2], items[3]].filter((v,i,a)=>a.findIndex(x=>x.py===v.py)===i));
     if (options.length < 2) { endExercise(); return; }
+    state._curQ = {ch: correct.word, py: correct.py, type: 'listen', word: correct.word};
     area.innerHTML = `
       <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
       <div class="exercise-question">
@@ -968,6 +1007,7 @@ function nextExerciseRound() {
       if (wp !== correctPy && !wrongs.includes(wp)) wrongs.push(wp);
     }
     const options = shuffle([correctPy, ...wrongs]);
+    state._curQ = {ch: init+fin, py: correctPy, type: 'match', word: init+fin, desc: init+' + '+fin};
     area.innerHTML = `
       <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
       <div class="exercise-question">
@@ -993,6 +1033,7 @@ function nextExerciseRound() {
     }
     const options = shuffle([correct, ...others].filter((v,i,a)=>a.findIndex(x=>x.py===v.py)===i));
     if (options.length < 2) { endExercise(); return; }
+    state._curQ = {ch: correct.ch, py: correct.py, type: 'char', word: correct.ch};
     area.innerHTML = `
       <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
       <div class="exercise-question">
@@ -1011,6 +1052,7 @@ function nextExerciseRound() {
     const tone = item.py.match(/[āáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜ]/);
     const correctTone = tone ? (['āōēīūǖ','áóéíúǘ','ǎǒěǐǔǚ','àòèìùǜ'].findIndex(g=>g.includes(tone[0]))+1) : 1;
     const tones = ['第一声 ¯','第二声 ˊ','第三声 ˇ','第四声 ˋ'];
+    state._curQ = {ch: item.word||item.py, py: item.py, type: 'tone', word: item.word||item.py, tone: correctTone};
     area.innerHTML = `
       <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
       <div class="exercise-question">
@@ -1042,10 +1084,11 @@ function checkAnswer(el, chosen, correct) {
     // Highlight correct answer
     allOpts.forEach(b=>{
       const val = b.onclick ? null : null;
-      // highlight by matching text
     });
     fb.className = 'feedback retry';
     fb.textContent = '差一点点，正确答案是 ' + correct + '，记住它哦！💪';
+    // Record error
+    recordError();
   }
   state.exerciseTotal++;
 
@@ -1058,6 +1101,7 @@ function endExercise() {
   const starEarned = pct >= 80 ? 1 : 0;
   if (starEarned) state.stars += starEarned;
   saveState();
+  const wrongCount = state.exerciseTotal - state.exerciseScore;
   area.innerHTML = `
     <div style="padding:30px;text-align:center">
       <div style="font-size:60px;margin-bottom:12px">${pct>=80?'🎉':'💪'}</div>
@@ -1067,12 +1111,236 @@ function endExercise() {
       <p style="font-size:18px;color:var(--c-sub);margin-bottom:8px">
         答对 ${state.exerciseScore}/${state.exerciseTotal} 题（正确率 ${pct}%）
       </p>
+      ${wrongCount > 0 ? `<p style="font-size:14px;color:var(--c-pink);margin-bottom:8px">${wrongCount} 道错题已记录到「错题本」，记得去复习哦！📝</p>` : ''}
       ${starEarned ? '<p style="font-size:20px;color:var(--c-yellow)">获得一颗 ⭐！</p>' : '<p style="font-size:16px;color:var(--c-sub)">答对80%以上可以获得星星哦～</p>'}
-      <button class="btn btn-primary btn-lg" style="margin-top:16px" onclick="startExercise(state.currentExercise.type)">🔄 再来一轮</button>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-primary btn-lg" onclick="startExercise(state.currentExercise.type)">🔄 再来一轮</button>
+        ${wrongCount > 0 ? `<button class="btn btn-outline btn-lg" onclick="showSection('errors')">📝 去错题本</button>` : ''}
+      </div>
     </div>
   `;
   state.currentExercise = null;
   renderProgress();
+}
+
+// ==================== ERROR TRACKING ====================
+function recordError() {
+  const q = state._curQ;
+  if (!q) return;
+  // Build a stable key
+  const key = q.ch + '|' + q.py + '|' + q.type;
+  if (!state.errorHistory[key]) {
+    state.errorHistory[key] = {
+      ch: q.ch, py: q.py, type: q.type, word: q.word,
+      desc: q.desc || '', tone: q.tone || '',
+      count: 0, lastWrong: 0
+    };
+  }
+  state.errorHistory[key].count++;
+  state.errorHistory[key].lastWrong = Date.now();
+  saveState();
+}
+
+function renderErrors() {
+  const list = document.getElementById('errorList');
+  const actions = document.getElementById('errorActions');
+  const entries = Object.values(state.errorHistory);
+
+  if (entries.length === 0) {
+    actions.innerHTML = '';
+    list.innerHTML = `
+      <div class="error-empty">
+        <span class="empty-icon">🎉</span>
+        <div class="empty-title">还没有错题哦！</div>
+        <div class="empty-desc">去「练一练」做几道题吧，答错的题目会自动记录在这里～</div>
+      </div>`;
+    return;
+  }
+
+  // Sort by count desc, then by recency
+  entries.sort((a, b) => b.count - a.count || b.lastWrong - a.lastWrong);
+
+  actions.innerHTML = `
+    <button class="btn btn-primary" onclick="startErrorPractice()">🎯 错题专项练习</button>
+    <button class="btn btn-outline btn-sm" onclick="clearErrors()">🗑 清空错题本</button>
+  `;
+
+  const typeNames = {listen:'听音选拼音', match:'声韵母配对', char:'看字选拼音', tone:'四声练习'};
+  const typeEmojis = {listen:'👂', match:'🔗', char:'👀', tone:'🎵'};
+
+  list.innerHTML = entries.map(e => {
+    const typeName = typeNames[e.type] || e.type;
+    const typeEmoji = typeEmojis[e.type] || '';
+    const timeAgo = e.lastWrong ? formatTimeAgo(e.lastWrong) : '';
+    const label = e.desc || e.ch;
+    return `
+    <div class="error-item" onclick="practiceOneError('${e.ch.replace(/'/g,"\\'")}','${e.py}','${e.type}')">
+      <div class="err-char">${label.length>3 ? label.slice(0,3) : label}</div>
+      <div class="err-info">
+        <div class="err-py">${e.py}</div>
+        <div class="err-type">${typeEmoji} ${typeName}${timeAgo?' · '+timeAgo:''}</div>
+      </div>
+      <span class="err-listen" onclick="event.stopPropagation();speak('${e.word}', '${e.word}')" title="听发音">🔊</span>
+      <div class="err-count">❌ ${e.count}次</div>
+    </div>`;
+  }).join('');
+}
+
+function formatTimeAgo(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff/60000)+'分钟前';
+  if (diff < 86400000) return Math.floor(diff/3600000)+'小时前';
+  return Math.floor(diff/86400000)+'天前';
+}
+
+function practiceOneError(ch, py, type) {
+  // Single-item targeted practice
+  const area = document.getElementById('exerciseArea');
+  // Switch to practice section
+  showSection('practice');
+  state.currentExercise = {type: 'error_single', score:0, total:0, round:0, maxRounds:3,
+    errorData: {ch, py, type}};
+  state.exerciseScore = 0;
+  state.exerciseTotal = 0;
+  nextErrorPracticeRound();
+}
+
+function startErrorPractice() {
+  // Start session from all errors
+  showSection('practice');
+  const entries = Object.values(state.errorHistory);
+  if (entries.length === 0) return;
+  // Sort by count, take top ones, ensure variety
+  entries.sort((a, b) => b.count - a.count);
+  state.currentExercise = {type: 'error_practice', score:0, total:0, round:0, maxRounds:Math.min(entries.length*2, 12),
+    errorPool: entries};
+  state.exerciseScore = 0;
+  state.exerciseTotal = 0;
+  nextErrorPracticeRound();
+}
+
+function nextErrorPracticeRound() {
+  const ex = state.currentExercise;
+  if (!ex || ex.round >= ex.maxRounds) {
+    endExercise();
+    return;
+  }
+  ex.round++;
+  const area = document.getElementById('exerciseArea');
+  const totalRounds = ex.maxRounds;
+
+  let eq;
+  if (ex.type === 'error_single') {
+    eq = ex.errorData;
+  } else if (ex.errorPool && ex.errorPool.length > 0) {
+    // Pick from pool, weighted by error count
+    const pool = [...ex.errorPool];
+    // Simple roulette: higher count = higher chance
+    const total = pool.reduce((s,e)=>s+e.count,0);
+    let r = Math.random()*total;
+    for (const e of pool) {
+      r -= e.count;
+      if (r <= 0) { eq = e; break; }
+    }
+    if (!eq) eq = pool[0];
+  }
+  if (!eq) { endExercise(); return; }
+
+  state._curQ = {ch: eq.ch, py: eq.py, type: eq.type, word: eq.word};
+
+  // Generate options based on type
+  let options, correctPy = eq.py, correctLabel = eq.py;
+
+  if (eq.type === 'listen' || eq.type === 'char') {
+    // Generate wrong pinyin options
+    const allItems = getAllPinyinItems();
+    const shuffled = shuffle(allItems);
+    const wrongs = [];
+    for (const item of shuffled) {
+      if (item.py !== correctPy && !wrongs.find(w=>w.py===item.py)) wrongs.push(item);
+      if (wrongs.length >= 3) break;
+    }
+    correctLabel = eq.desc || eq.ch;
+    const correctItem = {py: correctPy};
+    options = shuffle([correctItem, ...wrongs]);
+  } else if (eq.type === 'match') {
+    const spl = eq.desc ? eq.desc.split(' + ') : [correctPy.charAt(0), correctPy.slice(1)];
+    const init = spl[0]||''; const fin = spl[1]||'';
+    // Generate wrong combos
+    const initials = ['b','p','m','d','t','n','l','g','k','h','j','q','x'];
+    const finals = ['a','o','e','i','u','ai','ei','ao','ou'];
+    const wrongs = [];
+    while(wrongs.length < 3) {
+      const wi = initials[Math.floor(Math.random()*initials.length)];
+      const wf = finals[Math.floor(Math.random()*finals.length)];
+      const wp = wi + wf;
+      if (wp !== correctPy && !wrongs.includes(wp)) wrongs.push(wp);
+    }
+    options = shuffle([correctPy, ...wrongs]);
+    correctLabel = init + ' + ' + fin + ' = ?';
+  } else if (eq.type === 'tone') {
+    const tones = ['第一声 ¯','第二声 ˊ','第三声 ˇ','第四声 ˋ'];
+    const correctTone = eq.tone || 1;
+    correctLabel = correctPy;
+    options = tones.map((t,i) => ({py: String(i+1), label: t}));
+  }
+
+  if (!options || options.length < 2) { endExercise(); return; }
+
+  if (eq.type === 'match') {
+    const spl = eq.desc ? eq.desc.split(' + ') : [correctPy.charAt(0), correctPy.slice(1)];
+    const init = spl[0]||''; const fin = spl[1]||'';
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:4px">🔴 错题专项 · 第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:36px;color:var(--c-purple)">${init}</span>
+        <span style="font-size:24px;margin:0 8px">+</span>
+        <span style="font-size:36px;color:var(--c-blue)">${fin}</span>
+        <span style="font-size:24px;margin:0 8px">=</span>
+        <span style="font-size:36px">❓</span>
+        <p style="margin-top:8px;font-size:14px;color:var(--c-sub)">这个是你做错过的，再试试看！</p>
+      </div>
+      <div class="exercise-options">
+        ${options.map(o=>`<button class="exercise-option" onclick="checkAnswer(this,'${o}','${correctPy}')">${o}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>`;
+  } else if (eq.type === 'tone') {
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:4px">🔴 错题专项 · 第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:48px;color:var(--c-purple);display:block;margin-bottom:12px">${correctPy}</span>
+        <p style="font-size:14px;color:var(--c-sub)">这个你做错过哦，第几声？</p>
+      </div>
+      <div class="tone-grid">
+        ${options.map(o=>`<button class="tone-btn" onclick="checkAnswer(this,'${o.py}','${eq.tone||1}')">${o.label}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>`;
+    setTimeout(()=>speak(eq.word, eq.word), 400);
+  } else {
+    // listen + char type
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:4px">🔴 错题专项 · 第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:52px;display:block;margin-bottom:8px">${eq.ch}</span>
+        <p style="font-size:14px;color:var(--c-sub)">注意！这个词你答错过，再试试选拼音吧～</p>
+      </div>
+      <div class="exercise-options">
+        ${options.map(o=>`<button class="exercise-option" onclick="checkAnswer(this,'${o.py}','${correctPy}')">${o.py}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>`;
+    setTimeout(()=>speak(eq.word, eq.word), 500);
+  }
+}
+
+function clearErrors() {
+  if (confirm('确定要清空所有错题记录吗？这个操作不能撤销哦！')) {
+    state.errorHistory = {};
+    state._curQ = null;
+    saveState();
+    renderErrors();
+    showReward('🗑 错题本已清空');
+  }
 }
 
 // ==================== CHARACTERS ====================
@@ -1185,6 +1453,8 @@ function renderProgress() {
   document.getElementById('statStages').textContent = done;
   document.getElementById('statStars').textContent = Math.floor(state.stars);
   document.getElementById('statChars').textContent = Object.keys(state.knownChars).length;
+  const errCount = Object.keys(state.errorHistory).length;
+  document.getElementById('statErrors').textContent = errCount;
 
   // Badges
   const badges = [
@@ -1205,7 +1475,7 @@ function renderProgress() {
 
 function resetProgress() {
   if (confirm('确定要重置所有学习进度吗？这将清除所有星星和课程完成记录。')) {
-    state = { completedStages:{}, stars:0, knownChars:{}, currentExercise:null, exerciseScore:0, exerciseTotal:0 };
+    state = { completedStages:{}, stars:0, knownChars:{}, currentExercise:null, exerciseScore:0, exerciseTotal:0, errorHistory:{}, _curQ:null };
     saveState();
     renderProgress();
     renderStageList();
