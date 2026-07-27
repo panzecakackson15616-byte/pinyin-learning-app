@@ -1,19 +1,20 @@
-// 小语老师拼音乐园 - Service Worker
-const CACHE_NAME = 'pinyin-app-v2';
+// 小语老师拼音乐园 - Service Worker v3
+const CACHE_NAME = 'pinyin-app-v3';
 const ASSETS = [
   './',
   './index.html',
+  './chars.js',
   './manifest.json',
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
 
-// 安装：预缓存所有静态资源
+// 安装：预缓存
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching assets');
-      return cache.addAll(ASSETS);
+      console.log('[SW v3] Caching assets');
+      return cache.addAll(ASSETS).catch(e => console.log('[SW] Cache addAll failed (some may be offline):', e));
     }).then(() => self.skipWaiting())
   );
 });
@@ -29,30 +30,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 请求：缓存优先，网络回退
+// 请求：network-first（先网络，网络失败才用缓存）
 self.addEventListener('fetch', (event) => {
-  // 跳过 chrome-extension 和非 GET 请求
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      // 缓存命中，直接返回
-      if (cached) return cached;
-
-      // 缓存未命中，走网络
-      return fetch(event.request).then((response) => {
-        // 只缓存成功的响应
-        if (!response || response.status !== 200) return response;
-
+    fetch(event.request).then((response) => {
+      // 网络成功 → 更新缓存，返回最新内容
+      if (response && response.status === 200) {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, clone);
         });
-        return response;
-      }).catch(() => {
-        // 网络也挂了，返回离线页面（单页应用返回主页面）
-        return caches.match('./index.html');
+      }
+      return response;
+    }).catch(() => {
+      // 网络失败 → 使用缓存作为后备
+      return caches.match(event.request).then(cached => {
+        return cached || caches.match('./index.html');
       });
     })
   );
