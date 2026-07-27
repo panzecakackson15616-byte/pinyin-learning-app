@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拼音发音内测 - 自动遍历</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f5f0ff;padding:16px}
+  h1{text-align:center;color:#7c3aed;margin-bottom:4px;font-size:20px}
+  .sub{text-align:center;color:#999;font-size:12px;margin-bottom:16px}
+  .panel{max-width:600px;margin:0 auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  .word{text-align:center;font-size:72px;color:#333;line-height:1.2;min-height:100px;display:flex;align-items:center;justify-content:center}
+  .pinyin{text-align:center;font-size:24px;color:#7c3aed;margin:8px 0}
+  .progress{height:8px;background:#eee;border-radius:4px;margin:16px 0;overflow:hidden}
+  .progress-bar{height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);transition:width .3s}
+  .info{text-align:center;color:#666;font-size:13px;margin:8px 0}
+  .status{text-align:center;font-size:14px;font-weight:bold;margin-top:8px}
+  .status-google{color:#34a853}
+  .status-fallback{color:#ea8600}
+  .status-fail{color:#ea4335}
+  .controls{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+  button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:bold}
+  button:active{opacity:.7}
+  .btn-go{background:#7c3aed;color:#fff}
+  .btn-pause{background:#ea8600;color:#fff}
+  .btn-resume{background:#34a853;color:#fff}
+  .btn-skip{background:#666;color:#fff}
+  .log-area{max-width:600px;margin:12px auto;background:#fff;border-radius:12px;padding:12px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;line-height:1.6;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+  .log-ok{color:#34a853}
+  .log-fb{color:#ea8600}
+  .log-err{color:#ea4335}
+  .summary{padding:8px;margin-top:8px;text-align:center;font-size:13px;font-weight:bold}
+  .key{display:inline-block;background:#eee;border-radius:4px;padding:2px 8px;margin:2px;font-size:11px}
+</style>
+</head>
+<body>
+<h1>🔊 拼音发音内循环测试</h1>
+<div class="sub">测试引擎：Google TTS（主） + Web Speech API（后备）</div>
+
+<div class="panel">
+  <div class="word" id="wordDisplay">准备就绪</div>
+  <div class="pinyin" id="pinyinDisplay">—</div>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="info" id="infoDisplay">共 0 个词 · 当前 0</div>
+  <div class="status" id="statusDisplay">等待开始...</div>
+  <div class="controls">
+    <button class="btn-go" onclick="startTest()">▶ 开始自动测试</button>
+    <button class="btn-pause" onclick="pauseTest()">⏸ 暂停</button>
+    <button class="btn-resume" onclick="resumeTest()">▶ 继续</button>
+    <button class="btn-skip" onclick="skipCurrent()">⏭ 跳过</button>
+  </div>
+</div>
+
+<div class="summary" id="summaryDisplay"></div>
+<div class="log-area" id="logArea"></div>
+
+<script>
+// ===== 数据 =====
+const STAGES = [
+  {id:1,name:'单韵母',pinyin:[
+    {py:'ā',word:'啊'},{py:'á',word:'啊'},{py:'ǎ',word:'啊'},{py:'à',word:'啊'},
+    {py:'ō',word:'哦'},{py:'ó',word:'哦'},{py:'ǒ',word:'哦'},{py:'ò',word:'哦'},
+    {py:'ē',word:'鹅'},{py:'é',word:'鹅'},{py:'ě',word:'鹅'},{py:'è',word:'饿'},
+    {py:'ī',word:'衣'},{py:'í',word:'移'},{py:'ǐ',word:'椅'},{py:'ì',word:'亿'},
+    {py:'ū',word:'乌'},{py:'ú',word:'无'},{py:'ǔ',word:'五'},{py:'ù',word:'雾'},
+    {py:'ǖ',word:'迂'},{py:'ǘ',word:'鱼'},{py:'ǚ',word:'雨'},{py:'ǜ',word:'玉'},
+  ]},
+  {id:2,name:'声母(上)',pinyin:[
+    {py:'bā',word:'八'},{py:'bà',word:'爸'},{py:'pā',word:'趴'},{py:'pà',word:'怕'},
+    {py:'mā',word:'妈'},{py:'mǎ',word:'马'},{py:'fā',word:'发'},{py:'fú',word:'福'},
+    {py:'dà',word:'大'},{py:'dì',word:'地'},{py:'tā',word:'他'},{py:'tǔ',word:'土'},
+    {py:'ní',word:'泥'},{py:'nǚ',word:'女'},{py:'lè',word:'乐'},{py:'lù',word:'路'},
+  ]},
+  {id:3,name:'声母(下)',pinyin:[
+    {py:'gē',word:'歌'},{py:'gǒu',word:'狗'},{py:'kū',word:'哭'},{py:'kè',word:'课'},
+    {py:'hē',word:'喝'},{py:'hǔ',word:'虎'},{py:'jī',word:'鸡'},{py:'jiā',word:'家'},
+    {py:'qī',word:'七'},{py:'qiú',word:'球'},{py:'xī',word:'西'},{py:'xià',word:'下'},
+  ]},
+  {id:4,name:'翘舌/平舌',pinyin:[
+    {py:'zhī',word:'知'},{py:'shí',word:'十'},{py:'rì',word:'日'},{py:'chī',word:'吃'},
+    {py:'zì',word:'字'},{py:'cì',word:'次'},{py:'sì',word:'四'},{py:'wǒ',word:'我'},
+  ]},
+  {id:5,name:'复韵母',pinyin:[
+    {py:'bái',word:'白'},{py:'fēi',word:'飞'},{py:'shuǐ',word:'水'},{py:'hǎo',word:'好'},
+    {py:'niú',word:'牛'},{py:'xiě',word:'写'},{py:'yuè',word:'月'},{py:'ěr',word:'耳'},
+  ]},
+  {id:6,name:'鼻韵母',pinyin:[
+    {py:'sān',word:'三'},{py:'mén',word:'门'},{py:'rén',word:'人'},{py:'xīn',word:'心'},
+    {py:'shàng',word:'上'},{py:'fēng',word:'风'},{py:'hóng',word:'红'},{py:'yún',word:'云'},
+  ]},
+  {id:7,name:'整体认读',pinyin:[
+    {py:'zhī',word:'知'},{py:'shí',word:'十'},{py:'yuè',word:'月'},{py:'yún',word:'云'},
+    {py:'yī',word:'一'},{py:'wǔ',word:'五'},{py:'èr',word:'二'},{py:'sì',word:'四'},
+  ]},
+  {id:8,name:'三拼音节',pinyin:[
+    {py:'jiā',word:'加'},{py:'xiǎo',word:'小'},{py:'guā',word:'瓜'},{py:'huā',word:'花'},
+    {py:'niǎo',word:'鸟'},{py:'tiān',word:'天'},{py:'zuò',word:'做'},{py:'shuō',word:'说'},
+  ]},
+];
+
+// 构造完整测试列表
+let testList = [];
+STAGES.forEach((s,i) => {
+  const seen = new Set();
+  s.pinyin.forEach(p => {
+    if (!seen.has(p.word)) {
+      seen.add(p.word);
+      testList.push({stage:s.id, name:s.name, word:p.word, py:p.py});
+    }
+  });
+});
+
+// ===== 状态 =====
+let currentIndex = 0, isPaused = false, isRunning = false;
+let timeoutId = null;
+let results = {google:0, fallback:0, fail:0};
+
+// ===== Google TTS（主引擎） =====
+const GOOGLE_TTS = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-CN&q=';
+let _activeAudio = null;
+
+function speakGoogle(text) {
+  return new Promise((resolve) => {
+    const url = GOOGLE_TTS + encodeURIComponent(text);
+    const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
+    audio.src = url;
+    _activeAudio = audio;
+
+    const tid = setTimeout(() => {
+      _activeAudio = null;
+      audio.pause();
+      audio.src = '';
+      resolve('timeout');
+    }, 3000);
+
+    audio.onended = () => {
+      clearTimeout(tid);
+      _activeAudio = null;
+      resolve('google');
+    };
+
+    audio.play().then(() => {
+      // 播放已开始，等待 onended
+    }).catch(() => {
+      clearTimeout(tid);
+      _activeAudio = null;
+      resolve('error');
+    });
+  });
+}
+
+// ===== Web Speech API（后备） =====
+let _zhVoice = null;
+function findZhVoice() {
+  if (_zhVoice) return _zhVoice;
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  _zhVoice = voices.find(v => v.lang === 'zh-CN')
+          || voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
+          || null;
+  return _zhVoice;
+}
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => { _zhVoice = null; findZhVoice(); };
+}
+
+function speakFallback(text) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) { resolve('fail'); return; }
+    window.speechSynthesis.cancel();
+    const isSingle = text.length === 1;
+    const u = new SpeechSynthesisUtterance(isSingle ? (text + text) : text);
+    u.lang = 'zh-CN';
+    const zhVoice = findZhVoice();
+    if (zhVoice) u.voice = zhVoice;
+    u.rate = 0.75;
+    u.pitch = 1.05;
+    u.onend = () => resolve('fallback');
+    u.onerror = () => resolve('fail');
+    window.speechSynthesis.speak(u);
+  });
+}
+
+// ===== 完整 speak 流程 =====
+async function speakItem(text) {
+  const result = await speakGoogle(text);
+  if (result === 'google') return 'google';
+  // Google失败 → 后备
+  const fbResult = await speakFallback(text);
+  return fbResult;
+}
+
+function stopAll() {
+  if (_activeAudio) { _activeAudio.pause(); _activeAudio.src = ''; _activeAudio = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+// ===== 测试循环 =====
+async function testCurrent() {
+  if (currentIndex >= testList.length || isPaused || !isRunning) return;
+
+  const item = testList[currentIndex];
+  const display = document.getElementById('wordDisplay');
+  const pyDisplay = document.getElementById('pinyinDisplay');
+  const statusDisp = document.getElementById('statusDisplay');
+  const infoDisp = document.getElementById('infoDisplay');
+  const progressBar = document.getElementById('progressBar');
+  const logArea = document.getElementById('logArea');
+  const summaryDisp = document.getElementById('summaryDisplay');
+
+  // 更新界面
+  display.textContent = item.word;
+  pyDisplay.textContent = item.py;
+  statusDisp.textContent = '🎤 发音中...';
+  statusDisp.className = 'status';
+  infoDisp.textContent = '阶段' + item.stage + '「' + item.name + '」· 第 ' + (currentIndex+1) + '/' + testList.length + ' 个';
+  progressBar.style.width = ((currentIndex / testList.length) * 100) + '%';
+
+  // 发音
+  const result = await speakItem(item.word);
+
+  // 记录结果
+  if (result === 'google') {
+    results.google++;
+    statusDisp.textContent = '✅ Google TTS';
+    statusDisp.className = 'status status-google';
+    logArea.innerHTML += '<span class="log-ok">✔ ' + item.stage + '.' + item.word + '(' + item.py + ') — Google TTS</span><br>';
+  } else if (result === 'fallback') {
+    results.fallback++;
+    statusDisp.textContent = '⚠️ Web Speech 后备';
+    statusDisp.className = 'status status-fallback';
+    logArea.innerHTML += '<span class="log-fb">△ ' + item.stage + '.' + item.word + '(' + item.py + ') — 后备引擎</span><br>';
+  } else {
+    results.fail++;
+    statusDisp.textContent = '❌ 发音失败';
+    statusDisp.className = 'status status-fail';
+    logArea.innerHTML += '<span class="log-err">✘ ' + item.stage + '.' + item.word + '(' + item.py + ') — 失败</span><br>';
+  }
+
+  logArea.scrollTop = logArea.scrollHeight;
+
+  // 更新总结
+  summaryDisp.innerHTML = '✅ 有效：' + results.google + ' · ⚠️ 后备：' + results.fallback + ' · ❌ 失败：' + results.fail;
+
+  // 下一个
+  currentIndex++;
+  if (currentIndex < testList.length && isRunning && !isPaused) {
+    timeoutId = setTimeout(testCurrent, 600);
+  } else if (currentIndex >= testList.length) {
+    // 全部完成
+    isRunning = false;
+    progressBar.style.width = '100%';
+    display.textContent = '🎉 测试完成！';
+    statusDisp.textContent = '全部 ' + testList.length + ' 个词测试完毕';
+    statusDisp.className = 'status';
+    pyDisplay.textContent = '—';
+    stopAll();
+  }
+}
+
+function startTest() {
+  stopAll();
+  currentIndex = 0;
+  isPaused = false;
+  isRunning = true;
+  results = {google:0, fallback:0, fail:0};
+  document.getElementById('logArea').innerHTML = '';
+  document.getElementById('summaryDisplay').innerHTML = '';
+  document.getElementById('progressBar').style.width = '0%';
+  testCurrent();
+}
+
+function pauseTest() {
+  isPaused = true;
+  stopAll();
+  if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+}
+
+function resumeTest() {
+  if (!isRunning) return;
+  isPaused = false;
+  testCurrent();
+}
+
+function skipCurrent() {
+  stopAll();
+  if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+  currentIndex++;
+  if (currentIndex < testList.length && isRunning) {
+    testCurrent();
+  }
+}
+
+// 初始统计
+document.getElementById('infoDisplay').textContent = '共 ' + testList.length + ' 个词 · 待测试';
+</script>
+</body>
+</html>

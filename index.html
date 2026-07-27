@@ -537,36 +537,94 @@ function showSection(name) {
   if (name==='progress') renderProgress();
 }
 
-// ==================== SPEECH ====================
-// 缓存中文语音引擎（避免每次都搜索）
+// ==================== SPEECH ENGINE ====================
+// 双引擎策略：主引擎用 Google TTS（音质高，接近真人），后备用 Web Speech API
+// Google TTS 在某些网络环境（如国内）可能较慢，故设 3 秒超时自动切换后备
+// Web Speech API 后备时用完整语境句子提升发音质量
+
+const GOOGLE_TTS = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-CN&q=';
+
+// 当前活跃的 audio 元素引用，用于随时中断
+let _activeAudio = null;
+
+function speak(text) {
+  // 先终止任何正在播放的语音
+  stopSpeaking();
+
+  // ===== 主引擎：Google TTS =====
+  const url = GOOGLE_TTS + encodeURIComponent(text);
+  const audio = new Audio();
+  audio.crossOrigin = 'anonymous';
+  audio.src = url;
+  _activeAudio = audio;
+
+  // 3 秒超时：国内网络环境 Google TTS 可能很慢，到时间自动切后备
+  const timeoutId = setTimeout(() => {
+    if (_activeAudio === audio) {
+      _activeAudio = null;
+      audio.pause();
+      audio.src = '';
+      fallbackSpeak(text);
+    }
+  }, 3000);
+
+  audio.onended = () => {
+    clearTimeout(timeoutId);
+    _activeAudio = null;
+  };
+
+  audio.play().then(() => {
+    clearTimeout(timeoutId);
+  }).catch(() => {
+    // 播放失败（网络问题/不支持）→ 立即切后备
+    clearTimeout(timeoutId);
+    _activeAudio = null;
+    fallbackSpeak(text);
+  });
+}
+
+// ===== 后备引擎：Web Speech API（带语境句子提升质量） =====
 let _zhVoice = null;
 function findZhVoice() {
   if (_zhVoice) return _zhVoice;
   if (!('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices();
-  // 优先找 zh-CN，其次找任何中文语音
   _zhVoice = voices.find(v => v.lang === 'zh-CN')
           || voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
           || null;
   return _zhVoice;
 }
-// 语音引擎可能异步加载，监听 onvoiceschanged
 if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => { _zhVoice = null; findZhVoice(); };
 }
 
-function speak(text) {
+function fallbackSpeak(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  // 用完整语境句子：单字变词语，让 TTS 引擎有足够的上下文
+  //   "妈" → "妈妈"（叠词更自然）
+  //   "手" → "读作手"（单字加语境）
+  const isSingleChar = text.length === 1;
+  const spoken = isSingleChar ? (text + text) : text;
+  const u = new SpeechSynthesisUtterance(spoken);
   u.lang = 'zh-CN';
-  // 显式指定中文语音引擎，防止浏览器用英文引擎读拼音
   const zhVoice = findZhVoice();
   if (zhVoice) u.voice = zhVoice;
-  u.rate = 0.85;
-  u.pitch = 1.1;
+  u.rate = 0.75;  // 更慢，适合孩子
+  u.pitch = 1.05;
   u.volume = 1;
   window.speechSynthesis.speak(u);
+}
+
+function stopSpeaking() {
+  if (_activeAudio) {
+    _activeAudio.pause();
+    _activeAudio.src = '';
+    _activeAudio = null;
+  }
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 // ==================== LEARN: Stage List ====================
