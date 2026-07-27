@@ -1,0 +1,26 @@
+{
+  "name": "小语老师 - 拼音学习乐园",
+  "short_name": "拼音乐园",
+  "description": "小学一二年级拼音启蒙学习APP。8周掌握全部拼音，听音选字、声母韵母配对、四声练习，每天15分钟快乐学拼音！",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0F4FF",
+  "theme_color": "#A66CFF",
+  "lang": "zh-CN",
+  "categories": ["education", "kids"],
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

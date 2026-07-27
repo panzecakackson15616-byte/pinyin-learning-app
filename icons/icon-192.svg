@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A66CFF"/>
+      <stop offset="100%" stop-color="#FF6B8A"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <rect width="192" height="96" rx="40" fill="url(#shine)"/>
+  <!-- Book icon -->
+  <g transform="translate(96,75)">
+    <rect x="-32" y="-28" width="28" height="50" rx="3" fill="white" opacity="0.9"/>
+    <rect x="-2" y="-28" width="28" height="50" rx="3" fill="white" opacity="0.9"/>
+    <line x1="0" y1="-28" x2="0" y2="22" stroke="#A66CFF" stroke-width="3"/>
+    <!-- Text lines on left page -->
+    <line x1="-22" y1="-14" x2="-8" y2="-14" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="-25" y1="-4" x2="-6" y2="-4" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="-22" y1="6" x2="-8" y2="6" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <!-- Text lines on right page -->
+    <line x1="4" y1="-14" x2="24" y2="-14" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="4" y1="-4" x2="20" y2="-4" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="4" y1="6" x2="18" y2="6" stroke="#A66CFF" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <!-- Pinyin label -->
+  <text x="96" y="135" text-anchor="middle" font-size="18" fill="white" font-family="sans-serif" font-weight="bold" opacity="0.9">拼 音</text>
+</svg>

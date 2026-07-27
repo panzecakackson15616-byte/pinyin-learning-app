@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#A66CFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="拼音乐园">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<title>小语老师 - 拼音学习乐园</title>
+<style>
+:root {
+  --c-pink: #FF6B8A;
+  --c-blue: #5B9BD5;
+  --c-green: #6BCB77;
+  --c-yellow: #FFD93D;
+  --c-orange: #FF8C42;
+  --c-purple: #A66CFF;
+  --c-bg: #F0F4FF;
+  --c-card: #FFFFFF;
+  --c-text: #2D3436;
+  --c-sub: #636E72;
+  --radius: 20px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;
+  background: linear-gradient(135deg, #E8F0FE 0%, #F3E8FF 50%, #FFE8EC 100%);
+  min-height:100vh; color:var(--c-text); overflow-x:hidden;
+}
+
+/* Stars background */
+.stars-bg { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+.star { position:absolute; animation: twinkle 2s infinite; font-size:20px; opacity:0.6; }
+@keyframes twinkle { 0%,100%{opacity:0.3; transform:scale(1)} 50%{opacity:1; transform:scale(1.3)} }
+
+/* App Container */
+.app { position:relative; z-index:1; max-width:800px; margin:0 auto; padding:10px 16px 100px; }
+
+/* Header */
+.header { text-align:center; padding:24px 0 12px; }
+.header .mascot { font-size:64px; animation: bounce 2s infinite; display:inline-block; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.header h1 { font-size:28px; background:linear-gradient(135deg,var(--c-pink),var(--c-purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin:8px 0 4px; }
+.header .subtitle { font-size:14px; color:var(--c-sub); }
+
+/* Navigation Tabs */
+.nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:16px 0; }
+.nav button {
+  padding:10px 20px; border:none; border-radius:25px;
+  font-size:15px; font-weight:600; cursor:pointer;
+  background:var(--c-card); color:var(--c-text);
+  box-shadow:var(--shadow); transition:all 0.3s;
+  display:flex; align-items:center; gap:6px;
+}
+.nav button:hover { transform:translateY(-2px); box-shadow:0 6px 25px rgba(0,0,0,0.12); }
+.nav button.active { background:var(--c-purple); color:#fff; }
+
+/* Sections */
+.section { display:none; animation: fadeIn 0.4s; }
+.section.active { display:block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* Cards */
+.card { background:var(--c-card); border-radius:var(--radius); padding:24px; margin:16px 0; box-shadow:var(--shadow); }
+.card-title { font-size:20px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+
+/* Welcome */
+.welcome-banner { text-align:center; padding:30px 20px; }
+.welcome-banner .big-emoji { font-size:80px; display:block; margin-bottom:16px; }
+.welcome-banner h2 { font-size:26px; margin-bottom:8px; }
+.welcome-banner p { color:var(--c-sub); font-size:15px; line-height:1.8; }
+.feature-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px; }
+.feature-item { background:var(--c-bg); border-radius:16px; padding:20px 14px; text-align:center; cursor:pointer; transition:all 0.3s; }
+.feature-item:hover { transform:scale(1.03); box-shadow:var(--shadow); }
+.feature-item .icon { font-size:40px; display:block; margin-bottom:8px; }
+.feature-item .label { font-size:15px; font-weight:600; }
+
+/* Stage List */
+.stage-list { display:flex; flex-direction:column; gap:12px; }
+.stage-item { background:var(--c-card); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); cursor:pointer; transition:all 0.3s; display:flex; align-items:center; gap:14px; border:3px solid transparent; }
+.stage-item:hover { transform:translateX(4px); border-color:var(--c-purple); }
+.stage-item.completed { border-color:var(--c-green); }
+.stage-item .stage-num { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0; }
+.stage-item .stage-info { flex:1; }
+.stage-item .stage-title { font-size:17px; font-weight:700; }
+.stage-item .stage-desc { font-size:13px; color:var(--c-sub); margin-top:4px; }
+.stage-item .stage-arrow { font-size:20px; color:var(--c-sub); }
+
+/* Lesson Detail Modal */
+.modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; display:none; justify-content:center; align-items:center; padding:20px; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--c-card); border-radius:var(--radius); padding:24px; max-width:700px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative; }
+.modal-close { position:absolute; top:12px; right:16px; width:36px; height:36px; border-radius:50%; border:none; background:var(--c-bg); font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.pinyin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:10px; margin:16px 0; }
+.pinyin-card { background:var(--c-bg); border-radius:14px; padding:14px 10px; text-align:center; cursor:pointer; transition:all 0.3s; border:2px solid transparent; position:relative; }
+.pinyin-card:hover { border-color:var(--c-purple); transform:scale(1.05); }
+.pinyin-card .py-text { font-size:28px; font-weight:700; color:var(--c-purple); }
+.pinyin-card .py-word { font-size:13px; color:var(--c-sub); margin-top:4px; }
+.pinyin-card .speak-btn { position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; border:none; background:var(--c-blue); color:#fff; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+/* Character cards */
+.char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:12px; margin:16px 0; }
+.char-card { background:linear-gradient(135deg,#FFF9E6,#FFE8CC); border-radius:16px; padding:16px 10px; text-align:center; cursor:pointer; transition:all 0.3s; border:2px solid transparent; }
+.char-card:hover { border-color:var(--c-orange); transform:scale(1.05); }
+.char-card .char { font-size:42px; font-weight:700; color:var(--c-orange); }
+.char-card .char-py { font-size:16px; color:var(--c-green); margin-top:6px; font-weight:600; }
+
+/* Exercise */
+.exercise-area { text-align:center; }
+.exercise-question { font-size:22px; font-weight:700; margin:20px 0; }
+.exercise-options { display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:400px; margin:0 auto; }
+.exercise-option { padding:18px; border-radius:16px; border:3px solid var(--c-bg); background:var(--c-card); font-size:24px; font-weight:700; cursor:pointer; transition:all 0.3s; }
+.exercise-option:hover { border-color:var(--c-purple); transform:scale(1.03); }
+.exercise-option.correct { border-color:var(--c-green); background:#E8F5E9; animation:pop 0.5s; }
+.exercise-option.wrong { border-color:var(--c-pink); background:#FFEBEE; animation:shake 0.5s; }
+@keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+.feedback { font-size:18px; margin:16px 0; min-height:32px; font-weight:600; }
+.feedback.good { color:var(--c-green); }
+.feedback.retry { color:var(--c-pink); }
+
+/* Progress */
+.progress-bar-bg { background:var(--c-bg); border-radius:20px; height:20px; overflow:hidden; margin:12px 0; }
+.progress-bar-fill { height:100%; border-radius:20px; background:linear-gradient(90deg,var(--c-green),var(--c-blue)); transition:width 0.5s; }
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:16px 0; }
+.stat-card { background:var(--c-bg); border-radius:16px; padding:20px; text-align:center; }
+.stat-card .stat-num { font-size:36px; font-weight:700; color:var(--c-purple); }
+.stat-card .stat-label { font-size:13px; color:var(--c-sub); margin-top:4px; }
+
+/* Buttons */
+.btn { padding:12px 28px; border:none; border-radius:25px; font-size:16px; font-weight:600; cursor:pointer; transition:all 0.3s; display:inline-flex; align-items:center; gap:6px; }
+.btn-primary { background:var(--c-purple); color:#fff; }
+.btn-primary:hover { background:#8B5CF6; transform:translateY(-2px); }
+.btn-green { background:var(--c-green); color:#fff; }
+.btn-green:hover { background:#5AAF6A; transform:translateY(-2px); }
+.btn-orange { background:var(--c-orange); color:#fff; }
+.btn-orange:hover { background:#E67A30; transform:translateY(-2px); }
+.btn-outline { background:transparent; border:2px solid var(--c-purple); color:var(--c-purple); }
+.btn-outline:hover { background:var(--c-purple); color:#fff; }
+.btn-lg { padding:16px 36px; font-size:18px; border-radius:30px; }
+.btn-sm { padding:8px 16px; font-size:13px; }
+
+/* Tone practice */
+.tone-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-width:360px; margin:16px auto; }
+.tone-btn { padding:16px; border-radius:14px; border:2px solid var(--c-bg); background:var(--c-card); font-size:28px; cursor:pointer; transition:all 0.3s; }
+.tone-btn:hover { border-color:var(--c-purple); transform:scale(1.05); }
+
+/* Badge */
+.badge-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:12px 0; }
+.badge { width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:30px; background:var(--c-bg); border:3px solid #E0E0E0; }
+.badge.earned { border-color:var(--c-yellow); background:#FFF9E6; animation:pop 0.5s; }
+
+/* match game */
+.match-area { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin:20px 0; }
+.match-col { display:flex; flex-direction:column; gap:10px; }
+.match-item { padding:14px 20px; border-radius:14px; border:2px solid var(--c-bg); background:var(--c-card); font-size:18px; cursor:pointer; transition:all 0.3s; text-align:center; }
+.match-item.selected { border-color:var(--c-purple); background:#F3E8FF; }
+.match-item.matched { border-color:var(--c-green); background:#E8F5E9; pointer-events:none; }
+
+/* Responsive */
+@media(max-width:500px){
+  .feature-grid { grid-template-columns:1fr; }
+  .pinyin-grid { grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); }
+  .pinyin-card .py-text { font-size:22px; }
+  .exercise-options { grid-template-columns:1fr; }
+  .stats-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
+  .stat-card { padding:12px; }
+  .stat-card .stat-num { font-size:26px; }
+  .nav button { padding:8px 14px; font-size:13px; }
+  .match-area { flex-direction:column; align-items:center; }
+}
+
+/* PWA / Mobile APP styles */
+/* iOS safe area padding for standalone mode */
+@supports(padding:max(0px)){
+  .app { padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right)); padding-bottom:max(100px,env(safe-area-inset-bottom)); }
+}
+/* Standalone mode: hide browser chrome hints */
+@media all and (display-mode:standalone){
+  body { padding-top:env(safe-area-inset-top); }
+}
+
+/* Install prompt banner */
+.install-banner {
+  position:fixed; bottom:0; left:0; right:0;
+  background:linear-gradient(135deg,#A66CFF,#FF6B8A);
+  color:#fff; padding:16px 20px calc(16px + env(safe-area-inset-bottom));
+  z-index:300; display:none; align-items:center; gap:12px;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+  animation:slideUp 0.4s ease;
+}
+.install-banner.show { display:flex; }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.install-banner .ib-icon { font-size:36px; flex-shrink:0; }
+.install-banner .ib-text { flex:1; font-size:14px; line-height:1.5; }
+.install-banner .ib-text strong { font-size:16px; }
+.install-banner .ib-close { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:4px; opacity:0.7; }
+.install-banner .ib-btn { background:#fff; color:#A66CFF; border:none; padding:10px 20px; border-radius:20px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; }
+
+/* Share button */
+.share-btn {
+  position:fixed; top:16px; right:16px; z-index:50;
+  width:40px; height:40px; border-radius:50%;
+  background:var(--c-card); border:none; cursor:pointer;
+  font-size:20px; box-shadow:var(--shadow);
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.3s;
+}
+.share-btn:hover { transform:scale(1.1); }
+.share-toast {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(0,0,0,0.8); color:#fff; padding:16px 28px;
+  border-radius:14px; font-size:15px; z-index:400;
+  animation:fadeIn 0.3s;
+}
+
+/* Mobile touch optimizations */
+@media(hover:none) and (pointer:coarse){
+  .stage-item, .pinyin-card, .char-card, .exercise-option, .tone-btn, .match-item {
+    -webkit-tap-highlight-color:transparent;
+    cursor:default;
+  }
+  .stage-item:active, .pinyin-card:active, .char-card:active,
+  .exercise-option:active, .tone-btn:active { transform:scale(0.96); }
+}
+</style>
+</head>
+<body>
+
+<div class="stars-bg" id="starsBg"></div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <span class="mascot">👩‍🏫</span>
+    <h1>小语老师的拼音乐园</h1>
+    <p class="subtitle">拼音是工具，识字是目标 · 每天15分钟，快乐学拼音</p>
+  </div>
+
+  <!-- Share button (visible on mobile) -->
+  <button class="share-btn" onclick="shareApp()" title="分享给朋友">📤</button>
+
+  <!-- Navigation -->
+  <nav class="nav" id="navBar">
+    <button onclick="showSection('home')" class="active" data-section="home">🏠 首页</button>
+    <button onclick="showSection('learn')" data-section="learn">📚 学拼音</button>
+    <button onclick="showSection('practice')" data-section="practice">🎮 练一练</button>
+    <button onclick="showSection('chars')" data-section="chars">📝 识汉字</button>
+    <button onclick="showSection('progress')" data-section="progress">⭐ 我的进度</button>
+  </nav>
+
+  <!-- Home Section -->
+  <section class="section active" id="section-home">
+    <div class="welcome-banner">
+      <span class="big-emoji">🎈</span>
+      <h2>小朋友你好呀！</h2>
+      <p>我是小语老师，很高兴和你一起学拼音！<br>每天坚持15分钟，8周就能掌握所有拼音啦～</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-item" onclick="showSection('learn')">
+        <span class="icon">📚</span>
+        <span class="label">学拼音</span>
+      </div>
+      <div class="feature-item" onclick="showSection('practice')">
+        <span class="icon">🎮</span>
+        <span class="label">做练习</span>
+      </div>
+      <div class="feature-item" onclick="showSection('chars')">
+        <span class="icon">📝</span>
+        <span class="label">识汉字</span>
+      </div>
+      <div class="feature-item" onclick="showSection('progress')">
+        <span class="icon">⭐</span>
+        <span class="label">看进度</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">💡 今日小贴士</div>
+      <p style="font-size:15px;line-height:1.8" id="dailyTip">加载中...</p>
+    </div>
+  </section>
+
+  <!-- Learn Section -->
+  <section class="section" id="section-learn">
+    <div class="card">
+      <div class="card-title">📚 拼音课程（8周计划）</div>
+      <p style="color:var(--c-sub);margin-bottom:12px">点击进入每一课，小语老师带你一步步学～</p>
+      <div class="stage-list" id="stageList"></div>
+    </div>
+  </section>
+
+  <!-- Practice Section -->
+  <section class="section" id="section-practice">
+    <div class="card">
+      <div class="card-title">🎮 趣味练习</div>
+      <p style="color:var(--c-sub);margin-bottom:16px">选一种练习方式，看看你能答对多少！</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn btn-outline" onclick="startExercise('listen')">👂 听音选拼音</button>
+        <button class="btn btn-outline" onclick="startExercise('match')">🔗 声母韵母配对</button>
+        <button class="btn btn-outline" onclick="startExercise('char')">👀 看字选拼音</button>
+        <button class="btn btn-outline" onclick="startExercise('tone')">🎵 四声练习</button>
+      </div>
+      <div class="exercise-area" id="exerciseArea">
+        <p style="color:var(--c-sub);padding:40px 0">👆 点击上方按钮开始练习吧！</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Characters Section -->
+  <section class="section" id="section-chars">
+    <div class="card">
+      <div class="card-title">📝 识字卡片</div>
+      <p style="color:var(--c-sub);margin-bottom:12px">学拼音，认汉字。点击卡片听发音～</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="charStageBtns"></div>
+      <div class="char-grid" id="charGrid"></div>
+    </div>
+  </section>
+
+  <!-- Progress Section -->
+  <section class="section" id="section-progress">
+    <div class="card">
+      <div class="card-title">⭐ 学习进度</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="overallProgress" style="width:0%"></div></div>
+      <p style="text-align:center;color:var(--c-sub)" id="progressText">总进度 0%</p>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="statStages">0</div><div class="stat-label">已完成课程</div></div>
+        <div class="stat-card"><div class="stat-num" id="statStars">0</div><div class="stat-label">获得星星</div></div>
+        <div class="stat-card"><div class="stat-num" id="statChars">0</div><div class="stat-label">认识汉字</div></div>
+      </div>
+      <div class="card-title" style="margin-top:20px">🏆 成就徽章</div>
+      <div class="badge-row" id="badgeRow"></div>
+      <div style="text-align:center;margin-top:20px">
+        <button class="btn btn-orange" onclick="resetProgress()">🔄 重置进度</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Lesson Modal -->
+<div class="modal-overlay" id="lessonModal">
+  <div class="modal" id="lessonContent"></div>
+</div>
+
+<script>
+// ==================== DATA ====================
+const STAGES = [
+  {
+    id:1, name:'单韵母 + 四声', week:'第1周', color:'#FF6B8A',
+    desc:'a o e i u ü 六个单韵母和四个声调',
+    pinyin:[
+      {py:'ā',word:'啊'},{py:'á',word:'啊'},{py:'ǎ',word:'啊'},{py:'à',word:'啊'},
+      {py:'ō',word:'哦'},{py:'ó',word:'哦'},{py:'ǒ',word:'哦'},{py:'ò',word:'哦'},
+      {py:'ē',word:'鹅'},{py:'é',word:'鹅'},{py:'ě',word:'恶心'},{py:'è',word:'饿'},
+      {py:'ī',word:'衣'},{py:'í',word:'姨'},{py:'ǐ',word:'椅'},{py:'ì',word:'亿'},
+      {py:'ū',word:'乌'},{py:'ú',word:'无'},{py:'ǔ',word:'五'},{py:'ù',word:'雾'},
+      {py:'ǖ',word:'迂'},{py:'ǘ',word:'鱼'},{py:'ǚ',word:'雨'},{py:'ǜ',word:'玉'},
+    ],
+    chars:[{ch:'一',py:'yī'},{ch:'五',py:'wǔ'},{ch:'鱼',py:'yú'},{ch:'雨',py:'yǔ'},{ch:'鹅',py:'é'},{ch:'衣',py:'yī'}],
+    tips:'张大嘴巴 a a a，公鸡打鸣 o o o\n一声平又平 ¯，二声往上扬 ˊ\n三声拐个弯 ˇ，四声往下降 ˋ'
+  },
+  {
+    id:2, name:'声母 b p m f d t n l', week:'第2周', color:'#5B9BD5',
+    desc:'8个声母 + 两拼音节入门',
+    pinyin:[
+      {py:'bā',word:'八'},{py:'bá',word:'拔'},{py:'bǎ',word:'把'},{py:'bà',word:'爸'},
+      {py:'pā',word:'趴'},{py:'pá',word:'爬'},{py:'pà',word:'怕'},
+      {py:'mā',word:'妈'},{py:'má',word:'麻'},{py:'mǎ',word:'马'},{py:'mà',word:'骂'},
+      {py:'fā',word:'发'},{py:'fá',word:'罚'},{py:'fǎ',word:'法'},
+      {py:'dā',word:'搭'},{py:'dá',word:'答'},{py:'dǎ',word:'打'},{py:'dà',word:'大'},
+      {py:'tā',word:'他'},{py:'tǎ',word:'塔'},
+      {py:'ná',word:'拿'},{py:'nǎ',word:'哪'},{py:'nǐ',word:'你'},
+      {py:'lā',word:'拉'},{py:'lè',word:'乐'},{py:'lǜ',word:'绿'},
+    ],
+    chars:[{ch:'爸',py:'bà'},{ch:'妈',py:'mā'},{ch:'大',py:'dà'},{ch:'他',py:'tā'},{ch:'你',py:'nǐ'},{ch:'了',py:'le'},{ch:'不',py:'bù'},{ch:'土',py:'tǔ'}],
+    tips:'右下半圆 b b b，右上半圆 p p p\n两个门洞 m m m，一根拐棍 f f f\n左下半圆 d d d，伞柄朝下 t t t'
+  },
+  {
+    id:3, name:'声母 g k h j q x', week:'第3周', color:'#6BCB77',
+    desc:'6个声母 + jqx与ü的拼写规则',
+    pinyin:[
+      {py:'gē',word:'哥'},{py:'gé',word:'格'},{py:'gè',word:'个'},
+      {py:'kū',word:'哭'},{py:'kǔ',word:'苦'},{py:'kù',word:'裤'},
+      {py:'hā',word:'哈'},{py:'hé',word:'河'},{py:'huā',word:'花'},{py:'huà',word:'画'},
+      {py:'jī',word:'鸡'},{py:'jí',word:'急'},{py:'jǐ',word:'几'},{py:'jì',word:'记'},
+      {py:'qī',word:'七'},{py:'qí',word:'旗'},{py:'qǐ',word:'起'},{py:'qì',word:'气'},
+      {py:'xī',word:'西'},{py:'xí',word:'习'},{py:'xǐ',word:'洗'},{py:'xì',word:'细'},
+    ],
+    chars:[{ch:'哥',py:'gē'},{ch:'哭',py:'kū'},{ch:'花',py:'huā'},{ch:'鸡',py:'jī'},{ch:'七',py:'qī'},{ch:'西',py:'xī'},{ch:'下',py:'xià'},{ch:'瓜',py:'guā'}],
+    tips:'小ü见了 j q x，摘掉帽子还念ü\n9字加钩 g g g，机枪向上 k k k\n像把椅子 h h h，小鸡吃米 j j j'
+  },
+  {
+    id:4, name:'zh ch sh r z c s + y w', week:'第4周', color:'#FFD93D',
+    desc:'9个声母 + 平舌翘舌区分',
+    pinyin:[
+      {py:'zhī',word:'知'},{py:'zhí',word:'直'},{py:'zhǐ',word:'纸'},
+      {py:'chī',word:'吃'},{py:'chí',word:'池'},{py:'chǐ',word:'尺'},
+      {py:'shī',word:'师'},{py:'shí',word:'十'},{py:'shǐ',word:'使'},{py:'shì',word:'是'},
+      {py:'rì',word:'日'},{py:'rè',word:'热'},
+      {py:'zì',word:'字'},{py:'zǐ',word:'子'},
+      {py:'cí',word:'词'},{py:'cì',word:'次'},
+      {py:'sī',word:'思'},{py:'sì',word:'四'},
+      {py:'yī',word:'一'},{py:'yǔ',word:'雨'},{py:'yú',word:'鱼'},
+      {py:'wǒ',word:'我'},{py:'wǔ',word:'五'},
+    ],
+    chars:[{ch:'知',py:'zhī'},{ch:'吃',py:'chī'},{ch:'师',py:'shī'},{ch:'日',py:'rì'},{ch:'字',py:'zì'},{ch:'词',py:'cí'},{ch:'四',py:'sì'},{ch:'我',py:'wǒ'}],
+    tips:'z c s 舌头平，zh ch sh 舌头翘\ny 像树杈 y y y，w 像屋顶 w w w'
+  },
+  {
+    id:5, name:'复韵母', week:'第5周', color:'#FF8C42',
+    desc:'ai ei ui ao ou iu ie üe er',
+    pinyin:[
+      {py:'bái',word:'白'},{py:'pāi',word:'拍'},{py:'mǎi',word:'买'},
+      {py:'měi',word:'美'},{py:'fēi',word:'飞'},{py:'bèi',word:'被'},
+      {py:'shuǐ',word:'水'},{py:'huí',word:'回'},{py:'guì',word:'贵'},
+      {py:'hǎo',word:'好'},{py:'māo',word:'猫'},{py:'gāo',word:'高'},
+      {py:'gǒu',word:'狗'},{py:'shǒu',word:'手'},{py:'tóu',word:'头'},
+      {py:'niú',word:'牛'},{py:'jiǔ',word:'九'},{py:'liù',word:'六'},
+      {py:'xiě',word:'写'},{py:'yè',word:'叶'},{py:'bié',word:'别'},
+      {py:'yuè',word:'月'},{py:'xué',word:'学'},
+      {py:'ěr',word:'耳'},{py:'èr',word:'二'},
+    ],
+    chars:[{ch:'白',py:'bái'},{ch:'水',py:'shuǐ'},{ch:'好',py:'hǎo'},{ch:'狗',py:'gǒu'},{ch:'牛',py:'niú'},{ch:'月',py:'yuè'},{ch:'写',py:'xiě'},{ch:'耳',py:'ěr'}],
+    tips:'a和i做朋友，挨在一起 ai ai ai\ne和i做朋友，一起用力 ei ei ei\nu和i做朋友，围在一起 ui ui ui'
+  },
+  {
+    id:6, name:'鼻韵母', week:'第6周', color:'#A66CFF',
+    desc:'前鼻音 an en in un ün + 后鼻音 ang eng ing ong',
+    pinyin:[
+      {py:'sān',word:'三'},{py:'shān',word:'山'},{py:'kàn',word:'看'},
+      {py:'mén',word:'门'},{py:'rén',word:'人'},{py:'běn',word:'本'},
+      {py:'jīn',word:'金'},{py:'xīn',word:'心'},{py:'jìn',word:'进'},
+      {py:'chūn',word:'春'},{py:'dùn',word:'顿'},
+      {py:'yún',word:'云'},{py:'qún',word:'群'},
+      {py:'shàng',word:'上'},{py:'cháng',word:'长'},{py:'fāng',word:'方'},
+      {py:'dēng',word:'灯'},{py:'fēng',word:'风'},{py:'néng',word:'能'},
+      {py:'xīng',word:'星'},{py:'tīng',word:'听'},{py:'míng',word:'明'},
+      {py:'hóng',word:'红'},{py:'dōng',word:'东'},
+    ],
+    chars:[{ch:'三',py:'sān'},{ch:'人',py:'rén'},{ch:'金',py:'jīn'},{ch:'春',py:'chūn'},{ch:'云',py:'yún'},{ch:'上',py:'shàng'},{ch:'灯',py:'dēng'},{ch:'星',py:'xīng'},{ch:'红',py:'hóng'}],
+    tips:'天安门前 an an an，手摁门铃 en en en\nin ing 要分清，前鼻短来后鼻长'
+  },
+  {
+    id:7, name:'整体认读音节', week:'第7周', color:'#FF6B8A',
+    desc:'16个整体认读音节，看到直接读',
+    pinyin:[
+      {py:'zhī',word:'知'},{py:'chī',word:'吃'},{py:'shī',word:'师'},{py:'rì',word:'日'},
+      {py:'zì',word:'字'},{py:'cí',word:'词'},{py:'sì',word:'四'},
+      {py:'yī',word:'一'},{py:'wǔ',word:'五'},{py:'yú',word:'鱼'},
+      {py:'yè',word:'叶'},{py:'yuè',word:'月'},{py:'yuán',word:'圆'},
+      {py:'yīn',word:'音'},{py:'yún',word:'云'},{py:'yīng',word:'鹰'},
+    ],
+    chars:[{ch:'知',py:'zhī'},{ch:'吃',py:'chī'},{ch:'师',py:'shī'},{ch:'日',py:'rì'},{ch:'字',py:'zì'},{ch:'一',py:'yī'},{ch:'五',py:'wǔ'},{ch:'鱼',py:'yú'}],
+    tips:'zh ch sh r z c s，加个 i 变整体\nyi wu yu ye yue yuan，yin yun ying 也要记'
+  },
+  {
+    id:8, name:'综合拼读冲刺', week:'第8周', color:'#5B9BD5',
+    desc:'三拼音节 + 综合练习 + 识字冲刺',
+    pinyin:[
+      {py:'guā',word:'瓜'},{py:'huā',word:'花'},{py:'zhuō',word:'桌'},
+      {py:'xiǎo',word:'小'},{py:'niǎo',word:'鸟'},{py:'tiào',word:'跳'},
+      {py:'kuài',word:'快'},{py:'zhuā',word:'抓'},{py:'shuō',word:'说'},
+      {py:'tiān',word:'天'},{py:'xià',word:'下'},{py:'duō',word:'多'},
+    ],
+    chars:[
+      {ch:'天',py:'tiān'},{ch:'地',py:'dì'},{ch:'上',py:'shàng'},{ch:'下',py:'xià'},
+      {ch:'大',py:'dà'},{ch:'小',py:'xiǎo'},{ch:'多',py:'duō'},{ch:'少',py:'shǎo'},
+      {ch:'花',py:'huā'},{ch:'草',py:'cǎo'},{ch:'山',py:'shān'},{ch:'水',py:'shuǐ'},
+      {ch:'日',py:'rì'},{ch:'月',py:'yuè'},{ch:'星',py:'xīng'},{ch:'云',py:'yún'},
+    ],
+    tips:'三拼音节公式：声母 + 介母 + 韵母\n例：g-u-a → guā 瓜\n你已经学会所有拼音啦！继续加油！'
+  }
+];
+
+const TIPS = [
+  '拼音不用死记硬背，多读多用自然就会啦！💪',
+  'b 和 d 分不清？记住：b像数字6，d像反6～',
+  '前后鼻音是难点，in 短 ing 长，多听听就分清了！',
+  '小ü见了 j q x，两点要摘掉，但读音还是ü哦！',
+  '每天坚持15分钟，比一次学1小时效果好得多！',
+  '学完拼音马上认字，拼音才真正变成工具！',
+  '读拼音的时候声音要大，这样记得更牢！',
+  '把拼音当游戏，不要当任务，快乐学习最重要！',
+];
+
+// ==================== STATE ====================
+let state = {
+  completedStages: {},
+  stars: 0,
+  knownChars: {},
+  currentExercise: null,
+  exerciseScore: 0,
+  exerciseTotal: 0,
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('pinyinAppState');
+    if (saved) state = {...state, ...JSON.parse(saved)};
+  } catch(e) {}
+}
+function saveState() {
+  try {
+    localStorage.setItem('pinyinAppState', JSON.stringify(state));
+  } catch(e) {}
+}
+loadState();
+
+// ==================== STARS BACKGROUND ====================
+(function createStars() {
+  const bg = document.getElementById('starsBg');
+  const emojis = ['⭐','🌟','✨','💫','🌸','🍀','🎈','🎀'];
+  for(let i=0;i<25;i++) {
+    const s = document.createElement('span');
+    s.className='star';
+    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*100+'%';
+    s.style.animationDelay = Math.random()*2+'s';
+    s.style.fontSize = (14 + Math.random()*18)+'px';
+    bg.appendChild(s);
+  }
+})();
+
+// ==================== NAVIGATION ====================
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.querySelector(`.nav button[data-section="${name}"]`).classList.add('active');
+  if (name==='learn') renderStageList();
+  if (name==='chars') renderCharView();
+  if (name==='progress') renderProgress();
+}
+
+// ==================== SPEECH ====================
+// 缓存中文语音引擎（避免每次都搜索）
+let _zhVoice = null;
+function findZhVoice() {
+  if (_zhVoice) return _zhVoice;
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  // 优先找 zh-CN，其次找任何中文语音
+  _zhVoice = voices.find(v => v.lang === 'zh-CN')
+          || voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
+          || null;
+  return _zhVoice;
+}
+// 语音引擎可能异步加载，监听 onvoiceschanged
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => { _zhVoice = null; findZhVoice(); };
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  // 显式指定中文语音引擎，防止浏览器用英文引擎读拼音
+  const zhVoice = findZhVoice();
+  if (zhVoice) u.voice = zhVoice;
+  u.rate = 0.85;
+  u.pitch = 1.1;
+  u.volume = 1;
+  window.speechSynthesis.speak(u);
+}
+
+// ==================== LEARN: Stage List ====================
+function renderStageList() {
+  const list = document.getElementById('stageList');
+  list.innerHTML = STAGES.map((s,i)=>{
+    const done = state.completedStages[s.id];
+    return `<div class="stage-item ${done?'completed':''}" onclick="openLesson(${s.id})">
+      <div class="stage-num" style="background:${s.color}">${s.id}</div>
+      <div class="stage-info">
+        <div class="stage-title">${s.week}：${s.name}</div>
+        <div class="stage-desc">${s.desc}</div>
+      </div>
+      <div class="stage-arrow">${done?'✅':'▶'}</div>
+    </div>`;
+  }).join('');
+}
+
+function openLesson(stageId) {
+  const s = STAGES.find(x=>x.id===stageId);
+  if(!s) return;
+  const modal = document.getElementById('lessonModal');
+  const content = document.getElementById('lessonContent');
+  content.innerHTML = `
+    <button class="modal-close" onclick="closeLesson()">✕</button>
+    <h2 style="color:${s.color}">${s.week}：${s.name}</h2>
+    <p style="color:var(--c-sub);margin:8px 0">${s.desc}</p>
+    <div style="background:#FFF9E6;border-radius:16px;padding:16px;margin:16px 0;font-size:14px;line-height:1.8;white-space:pre-line">
+      💡 <b>小语老师口诀：</b><br>${s.tips}
+    </div>
+    <div class="card-title">🔊 点击拼音听发音</div>
+    <div class="pinyin-grid">
+      ${s.pinyin.map(p=>`
+        <div class="pinyin-card" onclick="speak('${p.word}')">
+          <button class="speak-btn" onclick="event.stopPropagation();speak('${p.word}')">🔊</button>
+          <div class="py-text">${p.py}</div>
+          <div class="py-word">${p.word}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="card-title">📝 本周识字</div>
+    <div class="char-grid">
+      ${s.chars.map(c=>`
+        <div class="char-card" onclick="speak('${c.ch}')">
+          <div class="char">${c.ch}</div>
+          <div class="char-py">${c.py}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button class="btn btn-green btn-lg" onclick="completeStage(${stageId})">
+        ✅ 完成本课，获得 ⭐
+      </button>
+    </div>
+  `;
+  modal.classList.add('show');
+}
+
+function closeLesson() {
+  document.getElementById('lessonModal').classList.remove('show');
+}
+
+function completeStage(stageId) {
+  if (!state.completedStages[stageId]) {
+    state.completedStages[stageId] = true;
+    state.stars += 1;
+    const s = STAGES.find(x=>x.id===stageId);
+    if (s) s.chars.forEach(c=>{ state.knownChars[c.ch] = true; });
+    saveState();
+    // confetti effect via simple animation
+    showReward('太棒了！获得一颗 ⭐');
+  }
+  closeLesson();
+  renderStageList();
+  renderProgress();
+}
+
+function showReward(msg) {
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px 40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);z-index:200;font-size:22px;font-weight:700;text-align:center;animation:pop 0.5s';
+  div.innerHTML = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>{ div.style.opacity='0'; div.style.transition='opacity 0.5s'; setTimeout(()=>div.remove(),500); },2000);
+}
+
+// ==================== PRACTICE ====================
+function shuffle(arr) { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+// Get all pinyin items across all stages
+function getAllPinyinItems() {
+  const items = [];
+  STAGES.forEach(s=>items.push(...s.pinyin));
+  return items;
+}
+function getAllCharItems() {
+  const items = [];
+  STAGES.forEach(s=>items.push(...s.chars));
+  return items;
+}
+
+function startExercise(type) {
+  state.currentExercise = {type, score:0, total:0, round:0, maxRounds:6};
+  state.exerciseScore = 0;
+  state.exerciseTotal = 0;
+  nextExerciseRound();
+}
+
+function nextExerciseRound() {
+  const ex = state.currentExercise;
+  if (!ex) return;
+  if (ex.round >= ex.maxRounds) {
+    endExercise();
+    return;
+  }
+  ex.round++;
+  const area = document.getElementById('exerciseArea');
+  const totalRounds = ex.maxRounds;
+
+  if (ex.type === 'listen') {
+    const items = shuffle(getAllPinyinItems());
+    const correct = items[0];
+    const options = shuffle([correct, items[1], items[2], items[3]].filter((v,i,a)=>a.findIndex(x=>x.py===v.py)===i));
+    if (options.length < 2) { endExercise(); return; }
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        🔊 <button class="btn btn-primary" onclick="speak('${correct.word}')">点我听发音</button>
+        <p style="margin-top:8px;font-size:16px;color:var(--c-sub)">选出你听到的拼音</p>
+      </div>
+      <div class="exercise-options">
+        ${options.map(o=>`<button class="exercise-option" onclick="checkAnswer(this,'${o.py}','${correct.py}')">${o.py}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>
+    `;
+    // auto-speak
+    setTimeout(()=>speak(correct.word), 500);
+  }
+  else if (ex.type === 'match') {
+    // Simple matching: show initial + final, pick the right combo
+    const initials = ['b','p','m','d','t','n','l','g','k','h','j','q','x'];
+    const finals = ['a','o','e','i','u','ai','ei','ao','ou'];
+    const init = initials[Math.floor(Math.random()*initials.length)];
+    const fin = finals[Math.floor(Math.random()*finals.length)];
+    const correctPy = init + fin;
+    // Generate wrong options
+    const wrongs = [];
+    while(wrongs.length < 3) {
+      const wi = initials[Math.floor(Math.random()*initials.length)];
+      const wf = finals[Math.floor(Math.random()*finals.length)];
+      const wp = wi + wf;
+      if (wp !== correctPy && !wrongs.includes(wp)) wrongs.push(wp);
+    }
+    const options = shuffle([correctPy, ...wrongs]);
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:36px;color:var(--c-purple)">${init}</span>
+        <span style="font-size:24px;margin:0 8px">+</span>
+        <span style="font-size:36px;color:var(--c-blue)">${fin}</span>
+        <span style="font-size:24px;margin:0 8px">=</span>
+        <span style="font-size:36px">❓</span>
+        <p style="margin-top:8px;font-size:16px;color:var(--c-sub)">声母和韵母拼在一起是什么？</p>
+      </div>
+      <div class="exercise-options">
+        ${options.map(o=>`<button class="exercise-option" onclick="checkAnswer(this,'${o}','${correctPy}')">${o}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>
+    `;
+  }
+  else if (ex.type === 'char') {
+    const items = shuffle(getAllCharItems());
+    const correct = items[0];
+    const others = [];
+    for(let i=1;i<items.length && others.length<3;i++) {
+      if(items[i].py !== correct.py) others.push(items[i]);
+    }
+    const options = shuffle([correct, ...others].filter((v,i,a)=>a.findIndex(x=>x.py===v.py)===i));
+    if (options.length < 2) { endExercise(); return; }
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:60px;display:block;margin-bottom:12px">${correct.ch}</span>
+        <p style="font-size:16px;color:var(--c-sub)">这个字的拼音是什么？</p>
+      </div>
+      <div class="exercise-options">
+        ${options.map(o=>`<button class="exercise-option" onclick="checkAnswer(this,'${o.py}','${correct.py}')">${o.py}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>
+    `;
+  }
+  else if (ex.type === 'tone') {
+    const items = shuffle(getAllPinyinItems());
+    const item = items[0];
+    const tone = item.py.match(/[āáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜ]/);
+    const correctTone = tone ? (['āōēīūǖ','áóéíúǘ','ǎǒěǐǔǚ','àòèìùǜ'].findIndex(g=>g.includes(tone[0]))+1) : 1;
+    const tones = ['第一声 ¯','第二声 ˊ','第三声 ˇ','第四声 ˋ'];
+    area.innerHTML = `
+      <p style="color:var(--c-sub);margin-bottom:8px">第 ${ex.round}/${totalRounds} 题</p>
+      <div class="exercise-question">
+        <span style="font-size:48px;color:var(--c-purple);display:block;margin-bottom:12px">${item.py}</span>
+        <p style="font-size:16px;color:var(--c-sub)">这是第几声？</p>
+      </div>
+      <div class="tone-grid">
+        ${tones.map((t,i)=>`<button class="tone-btn" onclick="checkAnswer(this,'${i+1}','${correctTone}')">${t}</button>`).join('')}
+      </div>
+      <div class="feedback" id="feedback"></div>
+    `;
+    setTimeout(()=>speak(item.word), 400);
+  }
+}
+
+function checkAnswer(el, chosen, correct) {
+  const fb = document.getElementById('feedback');
+  const allOpts = el.parentElement.querySelectorAll('button');
+  allOpts.forEach(b=>b.disabled=true);
+  const isCorrect = String(chosen) === String(correct);
+
+  if (isCorrect) {
+    el.classList.add('correct');
+    state.exerciseScore++;
+    fb.className = 'feedback good';
+    fb.textContent = ['太棒了！🎉','答对啦！⭐','真厉害！👏','完全正确！💯'][Math.floor(Math.random()*4)];
+  } else {
+    el.classList.add('wrong');
+    // Highlight correct answer
+    allOpts.forEach(b=>{
+      const val = b.onclick ? null : null;
+      // highlight by matching text
+    });
+    fb.className = 'feedback retry';
+    fb.textContent = '差一点点，正确答案是 ' + correct + '，记住它哦！💪';
+  }
+  state.exerciseTotal++;
+
+  setTimeout(()=>nextExerciseRound(), 1800);
+}
+
+function endExercise() {
+  const area = document.getElementById('exerciseArea');
+  const pct = state.exerciseTotal > 0 ? Math.round(state.exerciseScore/state.exerciseTotal*100) : 0;
+  const starEarned = pct >= 80 ? 1 : 0;
+  if (starEarned) state.stars += starEarned;
+  saveState();
+  area.innerHTML = `
+    <div style="padding:30px;text-align:center">
+      <div style="font-size:60px;margin-bottom:12px">${pct>=80?'🎉':'💪'}</div>
+      <div style="font-size:24px;font-weight:700;margin-bottom:8px">
+        ${pct>=80?'太厉害了！':'继续加油！'}
+      </div>
+      <p style="font-size:18px;color:var(--c-sub);margin-bottom:8px">
+        答对 ${state.exerciseScore}/${state.exerciseTotal} 题（正确率 ${pct}%）
+      </p>
+      ${starEarned ? '<p style="font-size:20px;color:var(--c-yellow)">获得一颗 ⭐！</p>' : '<p style="font-size:16px;color:var(--c-sub)">答对80%以上可以获得星星哦～</p>'}
+      <button class="btn btn-primary btn-lg" style="margin-top:16px" onclick="startExercise(state.currentExercise.type)">🔄 再来一轮</button>
+    </div>
+  `;
+  state.currentExercise = null;
+  renderProgress();
+}
+
+// ==================== CHARACTERS ====================
+function renderCharView() {
+  const btnDiv = document.getElementById('charStageBtns');
+  btnDiv.innerHTML = '<button class="btn btn-sm btn-primary" onclick="showCharsFor(-1)">全部</button>' +
+    STAGES.map(s=>`<button class="btn btn-sm btn-outline" onclick="showCharsFor(${s.id})">第${s.id}周</button>`).join('');
+  showCharsFor(-1);
+}
+
+function showCharsFor(stageId) {
+  let chars;
+  if (stageId === -1) {
+    chars = [];
+    STAGES.forEach(s=>chars.push(...s.chars));
+    // deduplicate
+    const seen = new Set();
+    chars = chars.filter(c=>{const k=c.ch;if(seen.has(k))return false;seen.add(k);return true;});
+  } else {
+    const s = STAGES.find(x=>x.id===stageId);
+    chars = s ? s.chars : [];
+  }
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = chars.map(c=>`
+    <div class="char-card" onclick="speak('${c.ch}');markCharKnown('${c.ch}')">
+      <div class="char">${c.ch}</div>
+      <div class="char-py">${c.py}</div>
+      ${state.knownChars[c.ch]?'<div style="font-size:20px;margin-top:4px">⭐</div>':''}
+    </div>
+  `).join('');
+}
+
+function markCharKnown(ch) {
+  if (!state.knownChars[ch]) {
+    state.knownChars[ch] = true;
+    state.stars += 0.5;
+    saveState();
+    renderCharView();
+  }
+}
+
+// ==================== PROGRESS ====================
+function renderProgress() {
+  const total = STAGES.length;
+  const done = Object.keys(state.completedStages).length;
+  const pct = Math.round(done/total*100);
+  document.getElementById('overallProgress').style.width = pct+'%';
+  document.getElementById('progressText').textContent = '总进度 '+pct+'%（'+done+'/'+total+' 课）';
+  document.getElementById('statStages').textContent = done;
+  document.getElementById('statStars').textContent = Math.floor(state.stars);
+  document.getElementById('statChars').textContent = Object.keys(state.knownChars).length;
+
+  // Badges
+  const badges = [
+    {id:'start', emoji:'🚀', label:'启程', cond:done>=1},
+    {id:'half', emoji:'🏃', label:'过半', cond:done>=4},
+    {id:'full', emoji:'🏆', label:'通关', cond:done>=8},
+    {id:'star5', emoji:'⭐', label:'5星', cond:state.stars>=5},
+    {id:'star20', emoji:'🌟', label:'20星', cond:state.stars>=20},
+    {id:'char10', emoji:'📖', label:'10字', cond:Object.keys(state.knownChars).length>=10},
+    {id:'char50', emoji:'📚', label:'50字', cond:Object.keys(state.knownChars).length>=50},
+  ];
+  document.getElementById('badgeRow').innerHTML = badges.map(b=>`
+    <div class="badge ${b.cond?'earned':''}" title="${b.label}">
+      ${b.emoji}
+    </div>
+  `).join('');
+}
+
+function resetProgress() {
+  if (confirm('确定要重置所有学习进度吗？这将清除所有星星和课程完成记录。')) {
+    state = { completedStages:{}, stars:0, knownChars:{}, currentExercise:null, exerciseScore:0, exerciseTotal:0 };
+    saveState();
+    renderProgress();
+    renderStageList();
+  }
+}
+
+// ==================== DAILY TIP ====================
+document.getElementById('dailyTip').textContent = TIPS[Math.floor(Math.random()*TIPS.length)];
+
+// ==================== INIT ====================
+renderStageList();
+renderCharView();
+renderProgress();
+
+// ==================== PWA: Install Prompt ====================
+let deferredPrompt = null;
+const installBanner = document.createElement('div');
+installBanner.className = 'install-banner';
+installBanner.innerHTML = `
+  <span class="ib-icon">📱</span>
+  <span class="ib-text"><strong>添加到手机桌面</strong><br>像APP一样使用，更方便！</span>
+  <button class="ib-btn" id="installBtn">立即添加</button>
+  <button class="ib-close" id="dismissBtn">✕</button>
+`;
+document.body.appendChild(installBanner);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // 延迟1.5秒显示，给用户先看看页面
+  setTimeout(() => {
+    if (!localStorage.getItem('pwa-banner-dismissed')) {
+      installBanner.classList.add('show');
+    }
+  }, 1500);
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBanner.classList.remove('show');
+  if (outcome === 'accepted') {
+    showReward('🎉 太棒了！APP已添加到桌面');
+  }
+});
+
+document.getElementById('dismissBtn').addEventListener('click', () => {
+  installBanner.classList.remove('show');
+  localStorage.setItem('pwa-banner-dismissed', '1');
+});
+
+// 如果已经在 standalone 模式，隐藏安装提示
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  installBanner.style.display = 'none';
+}
+
+// ==================== PWA: Share ====================
+function shareApp() {
+  const shareData = {
+    title: '小语老师 - 拼音学习乐园',
+    text: '小学一二年级拼音启蒙学习APP！8周掌握全部拼音，每天15分钟快乐学拼音～',
+    url: window.location.href
+  };
+  if (navigator.share) {
+    navigator.share(shareData).catch(() => {});
+  } else {
+    // 不支持原生分享，复制链接
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      const toast = document.createElement('div');
+      toast.className = 'share-toast';
+      toast.textContent = '链接已复制，粘贴发给朋友吧！';
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.5s'; setTimeout(()=>toast.remove(),500); }, 2000);
+    }).catch(() => {
+      alert('请复制链接分享：' + window.location.href);
+    });
+  }
+}
+
+// ==================== PWA: Register Service Worker ====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      console.log('[PWA] Service Worker registered:', reg.scope);
+    }).catch((err) => {
+      console.log('[PWA] Service Worker registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
