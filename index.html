@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>小语老师 - 拼音学习乐园</title>
+<script src="chars.js"></script>
 <style>
 :root {
   --c-pink: #FF6B8A;
@@ -105,10 +106,25 @@ body {
 
 /* Character cards */
 .char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:12px; margin:16px 0; }
-.char-card { background:linear-gradient(135deg,#FFF9E6,#FFE8CC); border-radius:16px; padding:16px 10px; text-align:center; cursor:pointer; transition:all 0.3s; border:2px solid transparent; }
-.char-card:hover { border-color:var(--c-orange); transform:scale(1.05); }
-.char-card .char { font-size:42px; font-weight:700; color:var(--c-orange); }
-.char-card .char-py { font-size:16px; color:var(--c-green); margin-top:6px; font-weight:600; }
+.char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin:16px 0; }
+.char-card { background:linear-gradient(135deg,#FFF9E6,#FFE8CC); border-radius:14px; padding:12px 8px; text-align:center; cursor:pointer; transition:all 0.25s; border:2px solid transparent; position:relative; overflow:hidden; }
+.char-card:hover { border-color:var(--c-orange); transform:translateY(-3px); box-shadow:0 6px 20px rgba(255,140,66,0.2); }
+.char-card .char { font-size:36px; font-weight:700; color:var(--c-orange); line-height:1.2; }
+.char-card .char-emoji { font-size:20px; display:block; margin-bottom:2px; }
+.char-card .char-py { font-size:14px; color:var(--c-green); margin:2px 0; font-weight:600; }
+.char-card .char-words { font-size:11px; color:#999; margin:4px 0 0; line-height:1.4; }
+.char-card .char-meta { font-size:10px; color:#bbb; margin-top:3px; display:flex; justify-content:center; gap:6px; }
+.char-card .char-meta span { background:rgba(0,0,0,0.05); padding:1px 5px; border-radius:6px; }
+.char-card .grade-tag { position:absolute; top:4px; right:6px; font-size:9px; color:#fff; background:var(--c-blue); padding:1px 5px; border-radius:6px; opacity:0.85; }
+.char-card.known { border-color:#FFD700; }
+.char-card.known::after { content:'⭐'; position:absolute; top:3px; left:6px; font-size:14px; }
+.char-search { width:100%; padding:10px 16px; border-radius:24px; border:2px solid #eee; font-size:16px; margin-bottom:12px; outline:none; }
+.char-search:focus { border-color:var(--c-blue); }
+.grade-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.grade-tab { padding:6px 14px; border-radius:20px; border:2px solid #e0e0e0; background:#fff; font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+.grade-tab:hover { border-color:var(--c-blue); }
+.grade-tab.active { background:var(--c-blue); color:#fff; border-color:var(--c-blue); }
+.char-count { text-align:center; font-size:13px; color:var(--c-sub); margin-bottom:10px; }
 
 /* Exercise */
 .exercise-area { text-align:center; }
@@ -315,8 +331,10 @@ body {
   <section class="section" id="section-chars">
     <div class="card">
       <div class="card-title">📝 识字卡片</div>
-      <p style="color:var(--c-sub);margin-bottom:12px">学拼音，认汉字。点击卡片听发音～</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="charStageBtns"></div>
+      <p style="color:var(--c-sub);margin-bottom:8px">人教版1-6年级全部生字 · 点击听发音 · 点⭐收藏</p>
+      <input class="char-search" id="charSearch" placeholder="🔍 搜索汉字..." oninput="filterChars()">
+      <div class="grade-tabs" id="gradeTabs"></div>
+      <div class="char-count" id="charCount"></div>
       <div class="char-grid" id="charGrid"></div>
     </div>
   </section>
@@ -886,33 +904,94 @@ function endExercise() {
 }
 
 // ==================== CHARACTERS ====================
+let charFilterGrade = '全部';
+let charSearchText = '';
+
 function renderCharView() {
-  const btnDiv = document.getElementById('charStageBtns');
-  btnDiv.innerHTML = '<button class="btn btn-sm btn-primary" onclick="showCharsFor(-1)">全部</button>' +
-    STAGES.map(s=>`<button class="btn btn-sm btn-outline" onclick="showCharsFor(${s.id})">第${s.id}周</button>`).join('');
-  showCharsFor(-1);
+  // Build grade tabs
+  const tabs = document.getElementById('gradeTabs');
+  const grades = ['全部','一年级上册','一年级下册','二年级上册','二年级下册',
+    '三年级上册','三年级下册','四年级上册','四年级下册',
+    '五年级上册','五年级下册','六年级上册','六年级下册'];
+  
+  tabs.innerHTML = grades.map(g => 
+    `<button class="grade-tab${charFilterGrade===g?' active':''}" onclick="setGradeFilter('${g}')">${g.replace('年级','')}</button>`
+  ).join('');
+  
+  showFilteredChars();
 }
 
-function showCharsFor(stageId) {
-  let chars;
-  if (stageId === -1) {
-    chars = [];
-    STAGES.forEach(s=>chars.push(...s.chars));
-    // deduplicate
-    const seen = new Set();
-    chars = chars.filter(c=>{const k=c.ch;if(seen.has(k))return false;seen.add(k);return true;});
-  } else {
-    const s = STAGES.find(x=>x.id===stageId);
-    chars = s ? s.chars : [];
+function setGradeFilter(grade) {
+  charFilterGrade = grade;
+  document.querySelectorAll('.grade-tab').forEach(b => {
+    b.classList.toggle('active', b.textContent === grade.replace('年级',''));
+  });
+  showFilteredChars();
+}
+
+function filterChars() {
+  charSearchText = document.getElementById('charSearch').value.trim();
+  showFilteredChars();
+}
+
+function showFilteredChars() {
+  let chars = [];
+  const search = charSearchText.toLowerCase();
+  
+  if (charFilterGrade === '全部') {
+    // From ALL_CHARS (flat array with unique chars)
+    if (typeof ALL_CHARS !== 'undefined') {
+      // Already unique
+      chars = ALL_CHARS;
+    } else if (typeof CHAR_LIBRARY !== 'undefined') {
+      // Build unique from CHAR_LIBRARY
+      const seen = new Set();
+      for (const grade in CHAR_LIBRARY) {
+        CHAR_LIBRARY[grade].forEach(c => {
+          if (!seen.has(c.ch)) { seen.add(c.ch); chars.push(c); }
+        });
+      }
+    }
+  } else if (typeof CHAR_LIBRARY !== 'undefined' && CHAR_LIBRARY[charFilterGrade]) {
+    chars = CHAR_LIBRARY[charFilterGrade];
   }
+  
+  // Apply search filter
+  if (search) {
+    chars = chars.filter(c => 
+      c.ch.includes(search) || c.py.toLowerCase().includes(search) ||
+      (c.words && c.words.includes(search))
+    );
+  }
+  
+  document.getElementById('charCount').textContent = `共 ${chars.length} 个字`;
+  
   const grid = document.getElementById('charGrid');
-  grid.innerHTML = chars.map(c=>`
-    <div class="char-card" onclick="speak('${c.ch}');markCharKnown('${c.ch}')">
+  grid.innerHTML = chars.map(c => {
+    const words = c.words ? c.words.split(' ').slice(0,3).join(' ') : '';
+    const radical = c.radical || '';
+    const strokes = c.strokes || '';
+    const emoji = c.emoji || '';
+    const gradeShort = (c.grade||'').replace('年级','');
+    
+    let metaHtml = '';
+    if (radical || strokes) {
+      metaHtml = `<div class="char-meta">`;
+      if (radical) metaHtml += `<span>部首:${radical}</span>`;
+      if (strokes) metaHtml += `<span>${strokes}画</span>`;
+      metaHtml += `</div>`;
+    }
+    
+    return `
+    <div class="char-card${state.knownChars[c.ch]?' known':''}" onclick="speak('${c.ch}');markCharKnown('${c.ch}')">
+      ${gradeShort ? `<span class="grade-tag">${gradeShort}</span>` : ''}
+      ${emoji ? `<span class="char-emoji">${emoji}</span>` : ''}
       <div class="char">${c.ch}</div>
       <div class="char-py">${c.py}</div>
-      ${state.knownChars[c.ch]?'<div style="font-size:20px;margin-top:4px">⭐</div>':''}
-    </div>
-  `).join('');
+      ${words ? `<div class="char-words">${words}</div>` : ''}
+      ${metaHtml}
+    </div>`;
+  }).join('');
 }
 
 function markCharKnown(ch) {
@@ -920,7 +999,7 @@ function markCharKnown(ch) {
     state.knownChars[ch] = true;
     state.stars += 0.5;
     saveState();
-    renderCharView();
+    showFilteredChars(); // refresh current view
   }
 }
 
