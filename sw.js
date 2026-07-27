@@ -1,5 +1,5 @@
-// 小语老师拼音乐园 - Service Worker v5
-const CACHE_NAME = 'pinyin-app-v5';
+// 小语老师拼音乐园 - Service Worker v6
+const CACHE_NAME = 'pinyin-app-v6';
 const ASSETS = [
   './',
   './index.html',

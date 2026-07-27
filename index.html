@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>小语老师 - 拼音学习乐园</title>
-<script src="chars.js?v=20260727d"></script>
+<script src="chars.js?v=20260727e"></script>
 <style>
 :root {
   --c-pink: #FF6B8A;
@@ -233,7 +233,106 @@ body {
 .error-practice-char { font-size:60px; font-weight:900; display:block; margin:12px 0; color:var(--c-orange); }
 .error-practice-py { font-size:22px; color:var(--c-purple); font-weight:700; margin-bottom:8px; }
 
+/* Dictation */
+.char-dictation-btn {
+  position:absolute; bottom:4px; right:4px;
+  width:26px; height:26px; border-radius:50%;
+  border:2px solid #ddd; background:#fff;
+  font-size:16px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center;
+  transition:all 0.2s; color:#bbb; font-weight:700;
+  line-height:1; padding:0;
+}
+.char-dictation-btn:hover { border-color:var(--c-green); color:var(--c-green); }
+.char-dictation-btn.in-dictation { border-color:var(--c-green); background:var(--c-green); color:#fff; }
+.char-card { position:relative; }
+
+.dictation-empty { text-align:center; padding:50px 20px; color:var(--c-sub); }
+.dictation-empty .empty-icon { font-size:60px; display:block; margin-bottom:12px; }
+.dictation-empty .empty-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.dictation-empty .empty-desc { font-size:14px; line-height:1.8; }
+
+.dictation-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin:16px 0; }
+.dictation-item {
+  background:var(--c-card); border-radius:16px; padding:20px 16px;
+  box-shadow:var(--shadow); border:2px dashed #e0e0e0;
+  position:relative; transition:all 0.25s;
+}
+.dictation-item:hover { border-color:var(--c-blue); }
+.dictation-item .di-num {
+  position:absolute; top:-10px; left:12px;
+  background:var(--c-purple); color:#fff; width:24px; height:24px;
+  border-radius:50%; font-size:12px; display:flex;
+  align-items:center; justify-content:center; font-weight:700;
+}
+.dictation-item .di-hint {
+  font-size:22px; font-weight:700; color:var(--c-text);
+  text-align:center; line-height:1.6; margin:8px 0;
+  letter-spacing:2px;
+}
+.dictation-item .di-hint .di-py {
+  color:var(--c-green); font-style:italic;
+}
+.dictation-item .di-blank {
+  display:inline-block; width:48px; height:48px;
+  border-bottom:3px solid var(--c-pink);
+  margin:0 4px; vertical-align:middle;
+}
+.dictation-item .di-remove {
+  position:absolute; top:6px; right:8px;
+  width:20px; height:20px; border-radius:50%;
+  border:none; background:rgba(0,0,0,0.06); cursor:pointer;
+  font-size:12px; color:#999; display:flex;
+  align-items:center; justify-content:center;
+  transition:all 0.2s;
+}
+.dictation-item .di-remove:hover { background:var(--c-pink); color:#fff; }
+.dictation-item .di-word-tag {
+  display:block; text-align:center; margin-top:8px;
+  font-size:12px; color:var(--c-sub);
+}
+.dictation-actions {
+  display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+  margin:16px 0;
+}
+.dictation-stats {
+  text-align:center; padding:8px; margin:8px 0;
+  font-size:14px; color:var(--c-sub);
+}
+.dictation-stats strong { color:var(--c-purple); }
+
+/* Print Styles */
+@media print {
+  body { background:#fff !important; color:#000 !important; }
+  .stars-bg, .nav, .header, .share-btn, .install-banner,
+  .dictation-actions, .dictation-stats { display:none !important; }
+  .app { max-width:100%; padding:0; margin:0; }
+  .section:not(#section-dictation) { display:none !important; }
+  #section-dictation { display:block !important; }
+
+  /* .dictation-grid to 每行3列 */
+  .dictation-grid {
+    grid-template-columns:repeat(3,1fr); gap:20px;
+    page-break-inside:avoid;
+  }
+  .dictation-item {
+    border:2px solid #000; box-shadow:none; break-inside:avoid;
+    padding:24px 16px;
+  }
+  .dictation-item .di-hint { font-size:26px; }
+  .dictation-item .di-blank { border-color:#000; width:56px; height:56px; }
+  .dictation-item .di-remove { display:none; }
+  .dictation-item .di-num { background:#000; }
+
+  /* Print title */
+  #printTitle { display:block !important; text-align:center; font-size:24px; font-weight:700; margin-bottom:20px; padding:10px; }
+
+  /* Print footer */
+  .print-footer { display:flex !important; justify-content:space-between; margin-top:30px; padding-top:15px; border-top:1px solid #ccc; font-size:14px; }
+}
+
 /* Responsive */
+
 @media(max-width:500px){
   .error-item { padding:12px; gap:8px; }
   .error-item .err-char { font-size:28px; min-width:36px; }
@@ -335,6 +434,7 @@ body {
     <button onclick="showSection('chars')" data-section="chars">📝 识汉字</button>
     <button onclick="showSection('progress')" data-section="progress">⭐ 我的进度</button>
     <button onclick="showSection('errors')" data-section="errors">❌ 错题本</button>
+    <button onclick="showSection('dictation')" data-section="dictation" id="navDictation">✏️ 默写本</button>
   </nav>
 
   <!-- Home Section -->
@@ -415,6 +515,9 @@ body {
       <div class="error-list" id="errorList"></div>
     </div>
   </section>
+
+  <!-- Progress Section -->
+  <section class="section" id="section-progress">
     <div class="card">
       <div class="card-title">⭐ 学习进度</div>
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="overallProgress" style="width:0%"></div></div>
@@ -429,6 +532,23 @@ body {
       <div class="badge-row" id="badgeRow"></div>
       <div style="text-align:center;margin-top:20px">
         <button class="btn btn-orange" onclick="resetProgress()">🔄 重置进度</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dictation Section -->
+  <section class="section" id="section-dictation">
+    <div class="card">
+      <div class="card-title">✏️ 默写本</div>
+      <p style="color:var(--c-sub);margin-bottom:8px">家长选字后，这里显示提示材料，让孩子根据拼音默写汉字</p>
+      <div class="dictation-stats" id="dictationStats"></div>
+      <div class="dictation-actions" id="dictationActions"></div>
+      <h3 id="printTitle" style="display:none">📝 默写练习纸</h3>
+      <div class="dictation-grid" id="dictationGrid"></div>
+      <div class="print-footer" style="display:none">
+        <span>姓名：__________</span>
+        <span>日期：____年____月____日</span>
+        <span>用时：__________</span>
       </div>
     </div>
   </section>
@@ -593,6 +713,7 @@ let state = {
   exerciseTotal: 0,
   errorHistory: {},
   _curQ: null,  // current question data for error tracking
+  dictationList: [], // 默写本选中的字
 };
 
 function loadState() {
@@ -634,6 +755,7 @@ function showSection(name) {
   if (name==='chars') renderCharView();
   if (name==='progress') renderProgress();
   if (name==='errors') renderErrors();
+  if (name==='dictation') renderDictation();
 }
 
 // ==================== SPEECH ENGINE ====================
@@ -841,6 +963,11 @@ function showCharDetail(ch) {
         </button>
         <button class="btn btn-outline" style="flex:1;max-width:180px;font-size:16px" onclick="speak('${data.ch}', '')">
           🔊 再听一遍
+        </button>
+      </div>
+      <div style="text-align:center;margin-top:10px">
+        <button class="btn btn-${state.dictationList.includes(data.ch)?'green':'outline'} btn-sm" onclick="toggleDictation('${data.ch.replace(/'/g,"\\'")}');closeCharDetail()">
+          ${state.dictationList.includes(data.ch)?'✅ 已加入默写本（点击移除）':'✏️ 加入默写本'}
         </button>
       </div>
     </div>
@@ -1343,6 +1470,131 @@ function clearErrors() {
   }
 }
 
+// ==================== DICTATION (默写本) ====================
+function toggleDictation(ch) {
+  const idx = state.dictationList.indexOf(ch);
+  if (idx >= 0) {
+    state.dictationList.splice(idx, 1);
+  } else {
+    state.dictationList.push(ch);
+  }
+  saveState();
+  updateDictationBadge();
+  // Refresh current views
+  showFilteredChars();
+  if (document.getElementById('section-dictation').classList.contains('active')) {
+    renderDictation();
+  }
+}
+
+function updateDictationBadge() {
+  const btn = document.getElementById('navDictation');
+  if (!btn) return;
+  const n = state.dictationList.length;
+  btn.textContent = n > 0 ? `✏️ 默写本(${n})` : '✏️ 默写本';
+}
+
+function generateDictationItems() {
+  return state.dictationList.map(ch => {
+    const data = findCharData(ch);
+    const py = data ? data.py : '';
+    const wordList = data && data.words ? data.words.split(' ') : [];
+
+    // Find a suitable word: contains ch, length >= 2, prefer where ch is not the only char
+    let bestWord = '';
+    for (const w of wordList) {
+      if (w.length >= 2 && w.includes(ch)) {
+        bestWord = w; break;
+      }
+    }
+
+    if (bestWord) {
+      // Replace the character with its pinyin + blank
+      // e.g. "绵羊" with ch="羊",py="yáng" → "绵yáng(    )"
+      const hintHtml = bestWord.replace(ch,
+        `<span class="di-py">${py}</span><span class="di-blank"></span>`
+      );
+      return { ch, py, hintHtml, word: bestWord };
+    }
+
+    // Fallback: just show pinyin + blank
+    const hintHtml = `<span class="di-py">${py}</span><span class="di-blank"></span>`;
+    return { ch, py, hintHtml, word: '' };
+  });
+}
+
+function renderDictation() {
+  updateDictationBadge();
+  const grid = document.getElementById('dictationGrid');
+  const actions = document.getElementById('dictationActions');
+  const stats = document.getElementById('dictationStats');
+
+  if (state.dictationList.length === 0) {
+    stats.innerHTML = '';
+    actions.innerHTML = '';
+    grid.innerHTML = `
+      <div class="dictation-empty" style="grid-column:1/-1">
+        <span class="empty-icon">📝</span>
+        <div class="empty-title">默写本是空的</div>
+        <div class="empty-desc">
+          去「📝 识汉字」页面，点击每个字右下角的 <b>+</b> 按钮<br>
+          或点开字的详情面板，点击「✏️ 加入默写本」<br>
+          选好后回到这里就能看到提示材料啦！
+        </div>
+      </div>`;
+    // Reset actions bar
+    actions.innerHTML = `<button class="btn btn-primary" onclick="showSection('chars')">📝 去选字</button>`;
+    return;
+  }
+
+  const items = generateDictationItems();
+  stats.innerHTML = `已选 <strong>${state.dictationList.length}</strong> 个字 · 每行一个默写提示`;
+
+  actions.innerHTML = `
+    <button class="btn btn-primary" onclick="printDictation()">🖨️ 一键打印</button>
+    <button class="btn btn-outline" onclick="showSection('chars')">📝 继续选字</button>
+    <button class="btn btn-orange btn-sm" onclick="clearDictation()">🗑 清空默写本</button>
+  `;
+
+  grid.innerHTML = items.map((item, i) => `
+    <div class="dictation-item">
+      <span class="di-num">${i+1}</span>
+      <button class="di-remove" onclick="toggleDictation('${item.ch.replace(/'/g,"\\'")}')" title="移除">✕</button>
+      <div class="di-hint">${item.hintHtml}</div>
+      ${item.word ? `<span class="di-word-tag">完整词语：${item.word}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+function printDictation() {
+  // Render fresh content first
+  renderDictation();
+  // Ensure dictation section is active before printing
+  const dSection = document.getElementById('section-dictation');
+  const wasActive = dSection.classList.contains('active');
+  if (!wasActive) {
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    dSection.classList.add('active');
+  }
+  // Brief delay for rendering, then print
+  setTimeout(() => {
+    window.print();
+    if (!wasActive) {
+      dSection.classList.remove('active');
+    }
+  }, 200);
+}
+
+function clearDictation() {
+  if (confirm('确定要清空默写本中的所有字吗？')) {
+    state.dictationList = [];
+    saveState();
+    renderDictation();
+    showFilteredChars();
+    showReward('🗑 默写本已清空');
+  }
+}
+
 // ==================== CHARACTERS ====================
 let charFilterGrade = '全部';
 let charSearchText = '';
@@ -1423,13 +1675,14 @@ function showFilteredChars() {
     }
     
     return `
-    <div class="char-card${state.knownChars[c.ch]?' known':''}" onclick="showCharDetail('${c.ch}')">
+    <div class="char-card${state.knownChars[c.ch]?' known':''}" onclick="showCharDetail('${c.ch.replace(/'/g,"\\'")}')">
       ${gradeShort ? `<span class="grade-tag">${gradeShort}</span>` : ''}
       ${emoji ? `<span class="char-emoji">${emoji}</span>` : ''}
       <div class="char">${c.ch}</div>
       <div class="char-py">${c.py}</div>
       ${words ? `<div class="char-words">${words}</div>` : ''}
       ${metaHtml}
+      <button class="char-dictation-btn${state.dictationList.includes(c.ch)?' in-dictation':''}" onclick="event.stopPropagation();toggleDictation('${c.ch.replace(/'/g,"\\'")}')" title="${state.dictationList.includes(c.ch)?'从默写本移除':'加入默写本'}">${state.dictationList.includes(c.ch)?'✓':'+'}</button>
     </div>`;
   }).join('');
 }
@@ -1475,7 +1728,7 @@ function renderProgress() {
 
 function resetProgress() {
   if (confirm('确定要重置所有学习进度吗？这将清除所有星星和课程完成记录。')) {
-    state = { completedStages:{}, stars:0, knownChars:{}, currentExercise:null, exerciseScore:0, exerciseTotal:0, errorHistory:{}, _curQ:null };
+    state = { completedStages:{}, stars:0, knownChars:{}, currentExercise:null, exerciseScore:0, exerciseTotal:0, errorHistory:{}, _curQ:null, dictationList:[] };
     saveState();
     renderProgress();
     renderStageList();
@@ -1489,6 +1742,7 @@ document.getElementById('dailyTip').textContent = TIPS[Math.floor(Math.random()*
 renderStageList();
 renderCharView();
 renderProgress();
+updateDictationBadge();
 
 // ==================== PWA: Install Prompt ====================
 let deferredPrompt = null;
