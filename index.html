@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>小语老师 - 拼音学习乐园</title>
-<script src="chars.js?v=20260727"></script>
+<script src="chars.js?v=20260727b"></script>
 <style>
 :root {
   --c-pink: #FF6B8A;
@@ -623,7 +623,7 @@ function buildSpeakText(ch) {
 function speak(ch, contextWords) {
   stopSpeaking();
   // 拼接语境：单字+词语，让TTS引擎有足够上下文发准音
-  const text = contextWords || buildSpeakText(ch);
+  const text = (arguments.length > 1) ? (contextWords || ch) : buildSpeakText(ch);
 
   // ===== 主引擎：Google TTS =====
   const url = GOOGLE_TTS + encodeURIComponent(text);
@@ -753,7 +753,7 @@ function showCharDetail(ch) {
         <div class="detail-char">${data.ch}</div>
         <div class="detail-py">
           <span class="detail-py-text">${data.py}</span>
-          <button class="detail-speak-btn" onclick="speak('${data.ch}','${(words[0]||data.ch)+'，'+(words[1]||'')}')">🔊 听发音</button>
+          <button class="detail-speak-btn" onclick="speak('${data.ch}', '')">🔊 听发音</button>
         </div>
         ${grade ? `<span class="detail-grade">📚 ${grade}</span>` : ''}
       </div>
@@ -782,7 +782,7 @@ function showCharDetail(ch) {
       <div class="detail-section">
         <div class="detail-section-title">📝 常用词语</div>
         <div class="detail-words">
-          ${words.map((w,i) => `<span class="detail-word-tag" onclick="event.stopPropagation();speak('${w}')" title="点击听发音">${w}</span>`).join('')}
+          ${words.map((w,i) => `<span class="detail-word-tag" onclick="event.stopPropagation();speak('${w}', '${w}')" title="点击听发音">${w}</span>`).join('')}
         </div>
       </div>` : ''}
 
@@ -801,7 +801,7 @@ function showCharDetail(ch) {
         <button class="btn btn-primary" style="flex:1;max-width:180px;font-size:16px" onclick="markCharKnown('${data.ch}');closeCharDetail()">
           ⭐ ${state.knownChars[data.ch] ? '已认识' : '我认识了'}
         </button>
-        <button class="btn btn-outline" style="flex:1;max-width:180px;font-size:16px" onclick="speak('${data.ch}','${(words[0]||data.ch)+'，'+(words[1]||'')}')">
+        <button class="btn btn-outline" style="flex:1;max-width:180px;font-size:16px" onclick="speak('${data.ch}', '')">
           🔊 再听一遍
         </button>
       </div>
